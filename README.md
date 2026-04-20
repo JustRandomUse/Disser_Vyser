@@ -11,7 +11,7 @@ project/
 │   │   └── server/      # Точка входа приложения
 │   ├── internal/
 │   │   ├── handler/     # HTTP handlers
-│   │   ├── service/     # Бизнес-логика
+│   │   ├── service/     # Бизнес-логика)
 │   │   ├── client/      # Клиент внешнего API
 │   │   ├── aggregator/  # Агрегация данных
 │   │   ├── model/       # Модели данных
