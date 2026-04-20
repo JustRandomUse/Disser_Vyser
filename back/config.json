@@ -1,0 +1,12 @@
+{
+  "api_key": "tvcpgyjme771y5zo",
+  "dataset_code": "knc-air",
+  "port": 8080,
+  "cache_ttl": {
+    "live_data": 60,
+    "metadata": 300,
+    "aggregated_short": 900,
+    "aggregated_long": 1800,
+    "historical": 7200
+  }
+}
