@@ -30,7 +30,8 @@
 
       <div class="calendar-footer">
         <button @click="selectToday" class="today-btn">Сегодня</button>
-        <button @click="close" class="close-btn">Закрыть</button>
+        <button @click="cancelSelection" class="cancel-btn">Отмена</button>
+        <button @click="applySelection" class="apply-btn" :disabled="!pendingStart">Применить</button>
       </div>
     </div>
   </div>
@@ -58,6 +59,8 @@ const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const startDate = ref(null);
 const endDate = ref(null);
 const isSelectingRange = ref(false);
+const pendingStart = ref(null);
+const pendingEnd = ref(null);
 
 const monthYear = computed(() => {
   const months = [
@@ -134,23 +137,18 @@ const selectDate = (day) => {
 
   const clickedDate = new Date(day.year, day.month, day.date);
 
-  if (!startDate.value || (startDate.value && endDate.value)) {
-    startDate.value = clickedDate;
-    endDate.value = null;
+  if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
+    pendingStart.value = clickedDate;
+    pendingEnd.value = null;
     isSelectingRange.value = true;
-  } else if (startDate.value && !endDate.value) {
-    if (clickedDate < startDate.value) {
-      endDate.value = startDate.value;
-      startDate.value = clickedDate;
+  } else if (pendingStart.value && !pendingEnd.value) {
+    if (clickedDate < pendingStart.value) {
+      pendingEnd.value = pendingStart.value;
+      pendingStart.value = clickedDate;
     } else {
-      endDate.value = clickedDate;
+      pendingEnd.value = clickedDate;
     }
     isSelectingRange.value = false;
-
-    emit('date-range-selected', {
-      start: startDate.value,
-      end: endDate.value
-    });
   }
 };
 
@@ -158,7 +156,30 @@ const selectToday = () => {
   const today = new Date();
   currentMonth.value = today.getMonth();
   currentYear.value = today.getFullYear();
-  emit('date-selected', today);
+  pendingStart.value = today;
+  pendingEnd.value = today;
+};
+
+const applySelection = () => {
+  if (!pendingStart.value) return;
+
+  if (pendingEnd.value && pendingStart.value.getTime() !== pendingEnd.value.getTime()) {
+    startDate.value = pendingStart.value;
+    endDate.value = pendingEnd.value;
+    emit('date-range-selected', {
+      start: startDate.value,
+      end: endDate.value
+    });
+  } else {
+    emit('date-selected', pendingStart.value);
+  }
+  close();
+};
+
+const cancelSelection = () => {
+  pendingStart.value = null;
+  pendingEnd.value = null;
+  isSelectingRange.value = false;
   close();
 };
 
@@ -181,27 +202,27 @@ const isToday = (day) => {
 };
 
 const isRangeStart = (day) => {
-  if (!startDate.value || day.otherMonth) return false;
+  if (!pendingStart.value || day.otherMonth) return false;
   return (
-    day.date === startDate.value.getDate() &&
-    day.month === startDate.value.getMonth() &&
-    day.year === startDate.value.getFullYear()
+    day.date === pendingStart.value.getDate() &&
+    day.month === pendingStart.value.getMonth() &&
+    day.year === pendingStart.value.getFullYear()
   );
 };
 
 const isRangeEnd = (day) => {
-  if (!endDate.value || day.otherMonth) return false;
+  if (!pendingEnd.value || day.otherMonth) return false;
   return (
-    day.date === endDate.value.getDate() &&
-    day.month === endDate.value.getMonth() &&
-    day.year === endDate.value.getFullYear()
+    day.date === pendingEnd.value.getDate() &&
+    day.month === pendingEnd.value.getMonth() &&
+    day.year === pendingEnd.value.getFullYear()
   );
 };
 
 const isInRange = (day) => {
-  if (!startDate.value || !endDate.value || day.otherMonth) return false;
+  if (!pendingStart.value || !pendingEnd.value || day.otherMonth) return false;
   const dayDate = new Date(day.year, day.month, day.date);
-  return dayDate > startDate.value && dayDate < endDate.value;
+  return dayDate > pendingStart.value && dayDate < pendingEnd.value;
 };
 </script>
 
@@ -316,8 +337,8 @@ const isInRange = (day) => {
 }
 
 .today-btn,
-.close-btn {
-  flex: 1;
+.cancel-btn,
+.apply-btn {
   padding: 10px;
   border: none;
   border-radius: 6px;
@@ -327,20 +348,37 @@ const isInRange = (day) => {
 }
 
 .today-btn {
-  background: #3b82f6;
-  color: white;
+  background: #e5e7eb;
+  color: #333;
+  flex: 1;
 }
 
 .today-btn:hover {
+  background: #d1d5db;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #333;
+  flex: 1;
+}
+
+.cancel-btn:hover {
+  background: #d1d5db;
+}
+
+.apply-btn {
+  background: #3b82f6;
+  color: white;
+  flex: 1;
+}
+
+.apply-btn:hover:not(:disabled) {
   background: #2563eb;
 }
 
-.close-btn {
-  background: #e5e7eb;
-  color: #333;
-}
-
-.close-btn:hover {
-  background: #d1d5db;
+.apply-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }
 </style>

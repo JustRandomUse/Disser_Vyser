@@ -42,6 +42,10 @@ const props = defineProps({
   timePoints: {
     type: Array,
     default: () => []
+  },
+  dateRange: {
+    type: Object,
+    default: null
   }
 });
 
@@ -61,6 +65,20 @@ watch(() => props.date, () => {
 });
 
 const formattedDate = computed(() => {
+  if (props.dateRange && props.dateRange.start && props.dateRange.end) {
+    const startStr = props.dateRange.start.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    const endStr = props.dateRange.end.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    return `${startStr} — ${endStr}`;
+  }
+
   return props.date.toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'short',

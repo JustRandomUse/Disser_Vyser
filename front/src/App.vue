@@ -6,6 +6,7 @@
     <Timeline
       :date="selectedDate"
       :timePoints="timePoints"
+      :dateRange="selectedDateRange"
       @time-selected="onTimeSelected"
       @open-calendar="isCalendarOpen = true"
     />
@@ -43,7 +44,7 @@ import Calendar from './components/Calendar.vue';
 import SensorModal from './components/SensorModal.vue';
 import SidePanel from './components/SidePanel.vue';
 import StatisticsModal from './components/StatisticsModal.vue';
-import { fetchAirQualityData } from './services/api';
+import { fetchAirQualityData, fetchAggregatedData } from './services/api';
 
 export default {
   name: 'App',
@@ -69,6 +70,11 @@ export default {
     const selectedTimePoint = ref(null);
     const selectedDateRange = ref(null);
     const timePoints = ref([]);
+    const mode = ref('live');
+    const rangeStart = ref(null);
+    const rangeEnd = ref(null);
+    const timelineScale = ref('hour');
+    let autoRefreshInterval = null;
 
     const generateTimePoints = () => {
       const points = [];
@@ -79,6 +85,58 @@ export default {
           hour: i
         });
       }
+      timePoints.value = points;
+    };
+
+    const generateTimePointsForRange = (startDate, endDate) => {
+      const points = [];
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === 0) {
+        timelineScale.value = 'hour';
+        for (let i = 0; i < 24; i++) {
+          points.push({
+            time: `${i.toString().padStart(2, '0')}:00`,
+            color: '#5DADE2',
+            hour: i
+          });
+        }
+      } else if (daysDiff <= 31) {
+        timelineScale.value = 'day';
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          points.push({
+            time: `${current.getDate()}/${current.getMonth() + 1}`,
+            color: '#5DADE2',
+            date: new Date(current)
+          });
+          current.setDate(current.getDate() + 1);
+        }
+      } else if (daysDiff <= 365) {
+        timelineScale.value = 'month';
+        const current = new Date(startDate);
+        const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        while (current <= endDate) {
+          points.push({
+            time: `${months[current.getMonth()]} ${current.getFullYear()}`,
+            color: '#5DADE2',
+            date: new Date(current)
+          });
+          current.setMonth(current.getMonth() + 1);
+        }
+      } else {
+        timelineScale.value = 'year';
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          points.push({
+            time: `${current.getFullYear()}`,
+            color: '#5DADE2',
+            date: new Date(current)
+          });
+          current.setFullYear(current.getFullYear() + 1);
+        }
+      }
+
       timePoints.value = points;
     };
 
@@ -130,9 +188,21 @@ export default {
     const loadAggregatedData = async (startDate, endDate) => {
       try {
         console.log('Loading aggregated data for range:', startDate, 'to', endDate);
-        // For now, load data for the start date
-        // TODO: Implement proper aggregated data loading from backend
-        const data = await fetchAirQualityData(startDate, 12);
+
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        let interval = 'hour';
+
+        if (daysDiff === 0) {
+          interval = 'hour';
+        } else if (daysDiff <= 31) {
+          interval = 'day';
+        } else if (daysDiff <= 365) {
+          interval = 'month';
+        } else {
+          interval = 'month';
+        }
+
+        const data = await fetchAggregatedData(startDate, endDate, interval);
         console.log('Loaded aggregated sensor data:', data);
         sensors.value = data;
       } catch (error) {
@@ -172,7 +242,12 @@ export default {
         return;
       }
 
+      mode.value = 'single-day';
       selectedDate.value = date;
+      selectedDateRange.value = null;
+      rangeStart.value = null;
+      rangeEnd.value = null;
+      generateTimePoints();
       console.log('Date selected:', date);
       const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
       loadData(date, hour);
@@ -194,14 +269,33 @@ export default {
         }
 
         if (range.end) {
-          // Range mode: load aggregated data
-          selectedDateRange.value = range;
-          selectedDate.value = range.start;
-          loadAggregatedData(range.start, range.end);
+          const endDay = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate());
+
+          if (range.start.getTime() === range.end.getTime()) {
+            mode.value = 'single-day';
+            selectedDateRange.value = null;
+            selectedDate.value = range.start;
+            rangeStart.value = null;
+            rangeEnd.value = null;
+            generateTimePoints();
+            const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
+            loadData(range.start, hour);
+          } else {
+            mode.value = 'range';
+            selectedDateRange.value = range;
+            selectedDate.value = range.start;
+            rangeStart.value = range.start;
+            rangeEnd.value = range.end;
+            generateTimePointsForRange(range.start, range.end);
+            loadAggregatedData(range.start, range.end);
+          }
         } else {
-          // Single date mode
+          mode.value = 'single-day';
           selectedDateRange.value = null;
           selectedDate.value = range.start;
+          rangeStart.value = null;
+          rangeEnd.value = null;
+          generateTimePoints();
           const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
           loadData(range.start, hour);
         }
@@ -218,9 +312,15 @@ export default {
     };
 
     onMounted(() => {
+      mode.value = 'live';
       generateTimePoints();
       loadData();
-      setInterval(loadData, 300000);
+
+      autoRefreshInterval = setInterval(() => {
+        if (mode.value === 'live') {
+          loadData();
+        }
+      }, 300000);
     });
 
     return {

@@ -82,6 +82,47 @@ export const fetchAirQualityData = async (date = null, hour = null) => {
   }
 };
 
+export const fetchAggregatedData = async (startDate, endDate, interval = 'hour') => {
+  try {
+    const coordinates = await fetchSiteCoordinates();
+
+    const timeBegin = startDate.toISOString();
+    const timeEnd = endDate.toISOString();
+
+    const endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${interval}`;
+
+    const response = await axios.get(endpoint);
+
+    if (response.data && response.data.status === 'success') {
+      const sensors = response.data.data.map(item => {
+        const coords = coordinates[item.site];
+        if (!coords) return null;
+
+        return {
+          id: item.site,
+          name: coords.name,
+          latitude: coords.lat,
+          longitude: coords.lon,
+          pm25: item['p-pm2'] || 0,
+          pm10: item['p-pm10'] || 0,
+          temperature: item['m-t'] || 0,
+          humidity: item['m-h'] || 0,
+          pressure: item['m-p'] || 0,
+          aqi: item.iaqi || 0,
+          time: item.time
+        };
+      }).filter(item => item !== null);
+
+      return sensors;
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Error fetching aggregated data:', error);
+    throw error;
+  }
+};
+
 export const getPollutionLevel = (pm25) => {
   if (pm25 <= 12) return { level: 'Good', color: '#00e400' };
   if (pm25 <= 35.4) return { level: 'Moderate', color: '#ffff00' };
