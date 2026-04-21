@@ -79,13 +79,13 @@ const selectedPreset = ref('');
 const selectedSensors = ref([]);
 
 const presets = {
-  left_bank: ['Черемушки', 'Взлетка', 'Академгородок'],
+  left_bank: ['Черемушки'],
   nikolaevka: ['Николаевка'],
   center: ['Центр', 'Площадь Революции'],
   soviet: ['Советский', 'Академгородок', 'Взлетка'],
-  zheleznodorozhny: ['Вокзал', 'Черемушки'],
-  kirovsky: ['Кировский', 'Николаевка'],
-  leninsky: ['Ленинский', 'Центр'],
+  zheleznodorozhny: ['Вокзал'],
+  kirovsky: ['Кировский'],
+  leninsky: ['Ленинский'],
   oktyabrsky: ['Октябрьский'],
   sverdlovsky: ['Свердловский']
 };
@@ -114,7 +114,7 @@ const applyPreset = () => {
 
   const presetNames = presets[selectedPreset.value] || [];
   selectedSensors.value = props.sensors
-    .filter(sensor => presetNames.some(name => sensor.name.includes(name)))
+    .filter(sensor => presetNames.some(name => sensor.name === name))
     .map(s => s.id);
 };
 

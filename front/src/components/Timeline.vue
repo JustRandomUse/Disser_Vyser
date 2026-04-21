@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
   date: {
@@ -50,6 +50,15 @@ const emit = defineEmits(['open-calendar', 'time-selected']);
 const currentPage = ref(1);
 const pointsPerPage = 15;
 const selectedIndex = ref(0);
+
+// Watch for date changes and reset pagination
+watch(() => props.date, () => {
+  currentPage.value = 1;
+  selectedIndex.value = 0;
+  if (props.timePoints.length > 0) {
+    emit('time-selected', props.timePoints[0]);
+  }
+});
 
 const formattedDate = computed(() => {
   return props.date.toLocaleDateString('ru-RU', {

@@ -103,7 +103,7 @@ func (s *Service) GetLastData(setCode string, sites []int, indicators []string) 
 
 // GetAggregatedData retrieves and aggregates data
 func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time, interval string, sites []int, indicators []string) (interface{}, error) {
-	cacheKey := fmt.Sprintf("agg:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02"), timeEnd.Format("2006-01-02"), interval, sites, indicators)
+	cacheKey := fmt.Sprintf("agg:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites, indicators)
 
 	// Check cache
 	if cached, found := s.cache.Get(cacheKey); found {
@@ -166,7 +166,7 @@ func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time
 
 // GetAggregatedDataWithStats retrieves aggregated data with statistics
 func (s *Service) GetAggregatedDataWithStats(setCode string, timeBegin, timeEnd time.Time, interval string, sites []int, indicators []string) (interface{}, error) {
-	cacheKey := fmt.Sprintf("agg-stats:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02"), timeEnd.Format("2006-01-02"), interval, sites, indicators)
+	cacheKey := fmt.Sprintf("agg-stats:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites, indicators)
 
 	// Check cache
 	if cached, found := s.cache.Get(cacheKey); found {
@@ -216,7 +216,7 @@ func (s *Service) GetTimeSeriesData(setCode string, timeBegin, timeEnd time.Time
 
 // GetStatistics calculates overall statistics for selected sites
 func (s *Service) GetStatistics(setCode string, timeBegin, timeEnd time.Time, sites []int, indicators []string) (interface{}, error) {
-	cacheKey := fmt.Sprintf("stats:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02"), timeEnd.Format("2006-01-02"), sites, indicators)
+	cacheKey := fmt.Sprintf("stats:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), sites, indicators)
 
 	// Check cache
 	if cached, found := s.cache.Get(cacheKey); found {

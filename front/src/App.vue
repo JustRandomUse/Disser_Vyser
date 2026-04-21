@@ -147,6 +147,16 @@ export default {
     };
 
     const onDateSelected = (date) => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const selectedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+      if (selectedDay > today) {
+        console.warn('Cannot select future date');
+        alert('Невозможно выбрать будущую дату. Данные доступны только за прошедшие периоды.');
+        return;
+      }
+
       selectedDate.value = date;
       console.log('Date selected:', date);
       const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
@@ -155,7 +165,19 @@ export default {
 
     const onDateRangeSelected = (range) => {
       console.log('Date range selected:', range);
+
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
       if (range.start) {
+        const startDay = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate());
+
+        if (startDay > today) {
+          console.warn('Cannot select future date range');
+          alert('Невозможно выбрать будущую дату. Данные доступны только за прошедшие периоды.');
+          return;
+        }
+
         selectedDate.value = range.start;
         const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
         loadData(range.start, hour);
