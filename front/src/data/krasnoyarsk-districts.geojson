@@ -1,0 +1,137 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Железнодорожный район",
+        "key": "zheleznodorozhny",
+        "name_en": "Zheleznodorozhny District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.800, 55.980],
+          [92.840, 55.980],
+          [92.840, 56.020],
+          [92.800, 56.020],
+          [92.800, 55.980]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Кировский район",
+        "key": "kirovsky",
+        "name_en": "Kirovsky District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.940, 55.980],
+          [93.000, 55.980],
+          [93.000, 56.025],
+          [92.940, 56.025],
+          [92.940, 55.980]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ленинский район",
+        "key": "leninsky",
+        "name_en": "Leninsky District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [93.000, 56.000],
+          [93.100, 56.000],
+          [93.100, 56.100],
+          [93.000, 56.100],
+          [93.000, 56.000]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Октябрьский район",
+        "key": "oktyabrsky",
+        "name_en": "Oktyabrsky District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.840, 56.020],
+          [92.940, 56.020],
+          [92.940, 56.100],
+          [92.840, 56.100],
+          [92.840, 56.020]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Советский район",
+        "key": "soviet",
+        "name_en": "Sovetsky District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.650, 55.960],
+          [92.800, 55.960],
+          [92.800, 56.110],
+          [92.650, 56.110],
+          [92.650, 55.960]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Свердловский район",
+        "key": "sverdlovsky",
+        "name_en": "Sverdlovsky District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.840, 55.960],
+          [92.940, 55.960],
+          [92.940, 56.000],
+          [92.840, 56.000],
+          [92.840, 55.960]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Центральный район",
+        "key": "center",
+        "name_en": "Central District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.840, 56.000],
+          [92.940, 56.000],
+          [92.940, 56.020],
+          [92.840, 56.020],
+          [92.840, 56.000]
+        ]]
+      }
+    }
+  ]
+}

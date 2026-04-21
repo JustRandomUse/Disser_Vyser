@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@turf/boolean-point-in-polygon": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
     "axios": "^1.15.0",
     "chart.js": "^4.5.1",
     "echarts": "^6.0.0",

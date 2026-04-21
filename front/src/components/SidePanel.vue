@@ -8,18 +8,17 @@
       <h3>Датчики</h3>
 
       <div class="preset-section">
-        <label>Пресеты районов:</label>
+        <label>Районы города:</label>
         <select v-model="selectedPreset" @change="applyPreset" class="preset-select">
           <option value="">Выбрать район</option>
-          <option value="left_bank">Левый берег</option>
-          <option value="nikolaevka">Николаевка</option>
-          <option value="center">Центр</option>
-          <option value="soviet">Советский район</option>
-          <option value="zheleznodorozhny">Железнодорожный район</option>
-          <option value="kirovsky">Кировский район</option>
-          <option value="leninsky">Ленинский район</option>
-          <option value="oktyabrsky">Октябрьский район</option>
-          <option value="sverdlovsky">Свердловский район</option>
+          <option
+            v-for="district in availableDistricts"
+            :key="district.key"
+            :value="district.key"
+          >
+            {{ district.name }}
+          </option>
+          <option value="unassigned">Без района</option>
         </select>
       </div>
 
@@ -63,7 +62,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { getAvailableDistricts, groupSensorsByDistrict, validateDistrictMapping } from '../utils/districtMapping';
 
 const props = defineProps({
   sensors: {
@@ -77,18 +77,8 @@ const emit = defineEmits(['show-statistics']);
 const isCollapsed = ref(false);
 const selectedPreset = ref('');
 const selectedSensors = ref([]);
-
-const presets = {
-  left_bank: ['Черемушки'],
-  nikolaevka: ['Николаевка'],
-  center: ['Центр', 'Площадь Революции'],
-  soviet: ['Советский', 'Академгородок', 'Взлетка'],
-  zheleznodorozhny: ['Вокзал'],
-  kirovsky: ['Кировский'],
-  leninsky: ['Ленинский'],
-  oktyabrsky: ['Октябрьский'],
-  sverdlovsky: ['Свердловский']
-};
+const availableDistricts = ref([]);
+const sensorsByDistrict = ref(new Map());
 
 const allSelected = computed(() => {
   return props.sensors.length > 0 && selectedSensors.value.length === props.sensors.length;
@@ -106,22 +96,48 @@ const toggleAll = () => {
   }
 };
 
+const updateDistrictMapping = () => {
+  if (props.sensors.length === 0) return;
+
+  sensorsByDistrict.value = groupSensorsByDistrict(props.sensors);
+
+  // Log validation report
+  const report = validateDistrictMapping(props.sensors);
+  console.log('District mapping validation:', report);
+
+  if (report.unassigned > 0) {
+    console.warn(`${report.unassigned} sensors without district assignment`);
+  }
+
+  if (report.multipleDistricts.length > 0) {
+    console.warn('Sensors in multiple districts:', report.multipleDistricts);
+  }
+};
+
 const applyPreset = () => {
   if (!selectedPreset.value) {
     selectedSensors.value = [];
     return;
   }
 
-  const presetNames = presets[selectedPreset.value] || [];
-  selectedSensors.value = props.sensors
-    .filter(sensor => presetNames.some(name => sensor.name === name))
-    .map(s => s.id);
+  const districtSensors = sensorsByDistrict.value.get(selectedPreset.value) || [];
+  selectedSensors.value = districtSensors.map(s => s.id);
 };
 
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
   emit('show-statistics', selected);
 };
+
+// Watch for sensor changes and update district mapping
+watch(() => props.sensors, () => {
+  updateDistrictMapping();
+}, { deep: true });
+
+onMounted(() => {
+  availableDistricts.value = getAvailableDistricts();
+  updateDistrictMapping();
+});
 </script>
 
 <style scoped>
