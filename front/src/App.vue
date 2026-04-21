@@ -67,6 +67,7 @@ export default {
     const selectedDate = ref(new Date());
     const selectedIndicator = ref(0);
     const selectedTimePoint = ref(null);
+    const selectedDateRange = ref(null);
     const timePoints = ref([]);
 
     const generateTimePoints = () => {
@@ -126,6 +127,20 @@ export default {
       }
     };
 
+    const loadAggregatedData = async (startDate, endDate) => {
+      try {
+        console.log('Loading aggregated data for range:', startDate, 'to', endDate);
+        // For now, load data for the start date
+        // TODO: Implement proper aggregated data loading from backend
+        const data = await fetchAirQualityData(startDate, 12);
+        console.log('Loaded aggregated sensor data:', data);
+        sensors.value = data;
+      } catch (error) {
+        console.error('Failed to load aggregated data:', error);
+        sensors.value = [];
+      }
+    };
+
     const openModal = (sensorData) => {
       selectedSensor.value = sensorData;
       isModalOpen.value = true;
@@ -178,9 +193,18 @@ export default {
           return;
         }
 
-        selectedDate.value = range.start;
-        const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
-        loadData(range.start, hour);
+        if (range.end) {
+          // Range mode: load aggregated data
+          selectedDateRange.value = range;
+          selectedDate.value = range.start;
+          loadAggregatedData(range.start, range.end);
+        } else {
+          // Single date mode
+          selectedDateRange.value = null;
+          selectedDate.value = range.start;
+          const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
+          loadData(range.start, hour);
+        }
       }
     };
 
@@ -207,6 +231,7 @@ export default {
       selectedSensor,
       selectedSensorsForStats,
       selectedDate,
+      selectedDateRange,
       selectedIndicator,
       selectedTimePoint,
       timePoints,

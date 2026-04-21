@@ -4,7 +4,7 @@
       <span class="calendar-icon">📅</span>
       {{ formattedDate }}
     </button>
-    
+
     <span class="page-counter">{{ currentPage }}/{{ totalPages }}</span>
     
     <button class="nav-btn" @click="previousPage" :disabled="currentPage === 1">

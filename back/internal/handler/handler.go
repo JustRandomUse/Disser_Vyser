@@ -126,7 +126,23 @@ func (h *Handler) GetDataByDateTime(c *gin.Context) {
 	sites := parseIntArray(c.Query("sites"))
 	indicators := parseStringArray(c.Query("indicators"))
 
-	data, err := h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
+	// Check if this is current hour (use /data/last for live data)
+	now := time.Now().UTC()
+	currentHour := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC)
+
+	var data interface{}
+
+	if timeBegin.Equal(currentHour) {
+		// Use live data endpoint for current hour
+		data, err = h.service.GetLastData(code, sites, indicators)
+	} else if now.Sub(timeBegin) < 24*time.Hour {
+		// Use raw data for recent hours (< 24h ago)
+		data, err = h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
+	} else {
+		// Use archive data for older data (> 24h ago)
+		data, err = h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Status: "error",
