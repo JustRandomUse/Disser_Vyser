@@ -96,21 +96,27 @@ const toggleAll = () => {
   }
 };
 
-const updateDistrictMapping = () => {
+const updateDistrictMapping = async () => {
   if (props.sensors.length === 0) return;
 
-  sensorsByDistrict.value = groupSensorsByDistrict(props.sensors);
+  try {
+    sensorsByDistrict.value = await groupSensorsByDistrict(props.sensors);
 
-  // Log validation report
-  const report = validateDistrictMapping(props.sensors);
-  console.log('District mapping validation:', report);
+    // Log validation report
+    const report = await validateDistrictMapping(props.sensors);
+    console.log('District mapping validation:', report);
 
-  if (report.unassigned > 0) {
-    console.warn(`${report.unassigned} sensors without district assignment`);
-  }
+    if (report.unassigned > 0) {
+      console.warn(`${report.unassigned} sensors without district assignment`);
+    }
 
-  if (report.multipleDistricts.length > 0) {
-    console.warn('Sensors in multiple districts:', report.multipleDistricts);
+    if (report.multipleDistricts.length > 0) {
+      console.warn('Sensors in multiple districts:', report.multipleDistricts);
+    }
+  } catch (error) {
+    console.error('Failed to update district mapping:', error);
+    // Fallback: empty map
+    sensorsByDistrict.value = new Map();
   }
 };
 
@@ -134,9 +140,15 @@ watch(() => props.sensors, () => {
   updateDistrictMapping();
 }, { deep: true });
 
-onMounted(() => {
-  availableDistricts.value = getAvailableDistricts();
-  updateDistrictMapping();
+onMounted(async () => {
+  try {
+    availableDistricts.value = await getAvailableDistricts();
+    await updateDistrictMapping();
+  } catch (error) {
+    console.error('Failed to initialize districts:', error);
+    // Fallback: empty districts
+    availableDistricts.value = [];
+  }
 });
 </script>
 
