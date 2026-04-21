@@ -65,7 +65,8 @@ export default {
     const selectedSensor = ref({});
     const selectedSensorsForStats = ref([]);
     const selectedDate = ref(new Date());
-    const selectedIndicator = ref(1);
+    const selectedIndicator = ref(0);
+    const selectedTimePoint = ref(null);
     const timePoints = ref([]);
 
     const generateTimePoints = () => {
@@ -80,9 +81,9 @@ export default {
       timePoints.value = points;
     };
 
-    const loadData = async () => {
+    const loadData = async (date = null, hour = null) => {
       try {
-        const data = await fetchAirQualityData();
+        const data = await fetchAirQualityData(date, hour);
         console.log('Loaded sensor data:', data);
         sensors.value = data;
       } catch (error) {
@@ -136,6 +137,8 @@ export default {
 
     const onTimeSelected = (timePoint) => {
       console.log('Time selected:', timePoint);
+      selectedTimePoint.value = timePoint;
+      loadData(selectedDate.value, timePoint.hour);
     };
 
     const onIndicatorSelected = (index) => {
@@ -146,11 +149,17 @@ export default {
     const onDateSelected = (date) => {
       selectedDate.value = date;
       console.log('Date selected:', date);
+      const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
+      loadData(date, hour);
     };
 
     const onDateRangeSelected = (range) => {
       console.log('Date range selected:', range);
-      // Handle date range selection for data filtering
+      if (range.start) {
+        selectedDate.value = range.start;
+        const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
+        loadData(range.start, hour);
+      }
     };
 
     const openStatisticsModal = (selectedSensors) => {
@@ -177,6 +186,7 @@ export default {
       selectedSensorsForStats,
       selectedDate,
       selectedIndicator,
+      selectedTimePoint,
       timePoints,
       openModal,
       closeModal,

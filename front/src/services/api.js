@@ -35,13 +35,22 @@ const fetchSiteCoordinates = async () => {
   return {};
 };
 
-export const fetchAirQualityData = async () => {
+export const fetchAirQualityData = async (date = null, hour = null) => {
   try {
     // Get coordinates first
     const coordinates = await fetchSiteCoordinates();
 
-    // Use our backend endpoint for latest data
-    const response = await axios.get(`${API_BASE_URL}/datasets/knc-air/last`);
+    let endpoint = `${API_BASE_URL}/datasets/knc-air/last`;
+
+    // If date and hour are provided, fetch historical data
+    if (date && hour !== null) {
+      const dateStr = date.toISOString().split('T')[0];
+      const hourStr = hour.toString().padStart(2, '0');
+      endpoint = `${API_BASE_URL}/datasets/knc-air/data?date=${dateStr}&hour=${hourStr}`;
+    }
+
+    // Use our backend endpoint for data
+    const response = await axios.get(endpoint);
 
     if (response.data && response.data.status && response.data.status === 'success') {
       const sensors = response.data.data.map(item => {

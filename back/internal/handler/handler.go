@@ -88,6 +88,59 @@ func (h *Handler) GetLastData(c *gin.Context) {
 	})
 }
 
+// GetDataByDateTime handles GET /api/datasets/:code/data
+func (h *Handler) GetDataByDateTime(c *gin.Context) {
+	code := c.Param("code")
+	dateStr := c.Query("date")
+	hourStr := c.Query("hour")
+
+	if dateStr == "" || hourStr == "" {
+		c.JSON(http.StatusBadRequest, Response{
+			Status: "error",
+			Error:  "date and hour parameters are required",
+		})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Status: "error",
+			Error:  "invalid date format, use YYYY-MM-DD",
+		})
+		return
+	}
+
+	hour, err := strconv.Atoi(hourStr)
+	if err != nil || hour < 0 || hour > 23 {
+		c.JSON(http.StatusBadRequest, Response{
+			Status: "error",
+			Error:  "invalid hour, must be 0-23",
+		})
+		return
+	}
+
+	timeBegin := time.Date(date.Year(), date.Month(), date.Day(), hour, 0, 0, 0, time.UTC)
+	timeEnd := timeBegin.Add(time.Hour)
+
+	sites := parseIntArray(c.Query("sites"))
+	indicators := parseStringArray(c.Query("indicators"))
+
+	data, err := h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Status: "error",
+			Error:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Status: "success",
+		Data:   data,
+	})
+}
+
 // GetAggregatedData handles GET /api/datasets/:code/aggregated
 func (h *Handler) GetAggregatedData(c *gin.Context) {
 	code := c.Param("code")

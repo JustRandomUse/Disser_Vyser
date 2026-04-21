@@ -3,73 +3,60 @@
     <div class="modal-content" @click.stop>
       <button class="close-btn" @click="closeModal">&times;</button>
 
-      <h2>Датчик: {{ sensorData.name || 'Неизвестно' }}</h2>
+      <h2>{{ sensorData.name }}</h2>
 
-      <div class="data-section">
-        <h3>Текущие измерения</h3>
-        <div class="current-values-chart">
-          <div ref="currentValuesChart" style="width: 100%; height: 300px;"></div>
-        </div>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Параметр</th>
-              <th>Значение</th>
-              <th>Единица</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(value, key) in measurements"
-              :key="key"
-              @click="selectSingleParam(key)"
-              class="clickable-row"
-              :class="{ 'selected-row': selectedSingleParam === key }"
-            >
-              <td>{{ formatKey(key) }}</td>
-              <td>{{ value }}</td>
-              <td>{{ getUnit(key) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="current-values">
+        <h3>Текущие показатели</h3>
+        <div ref="currentValuesChart" style="width: 100%; height: 300px;"></div>
       </div>
 
-      <div class="charts-section">
-        <div class="chart-container-large">
-          <div ref="timeSeriesChart" style="width: 100%; height: 100%;"></div>
+      <div class="time-series-section">
+        <h3>Динамика за 7 дней</h3>
+        <div class="param-selector">
+          <button
+            v-for="(key, index) in Object.keys(measurements)"
+            :key="index"
+            :class="{ active: selectedSingleParam === key }"
+            @click="selectSingleParam(key)"
+          >
+            {{ formatKey(key) }}
+          </button>
         </div>
+        <div ref="timeSeriesChart" style="width: 100%; height: 400px;"></div>
+      </div>
 
-        <div class="comparison-section">
-          <h3>Сравнение параметров</h3>
-          <div class="comparison-checkboxes">
-            <label v-for="(value, key) in measurements" :key="key" class="checkbox-label">
-              <input
-                type="checkbox"
-                :checked="comparisonParams.includes(key)"
-                @change="toggleComparisonParam(key)"
-                class="param-checkbox"
-              />
-              <span>{{ formatKey(key) }}</span>
-            </label>
-          </div>
-          <div class="chart-container-comparison">
-            <div ref="comparisonChart" style="width: 100%; height: 100%;"></div>
-          </div>
+      <div class="comparison-section">
+        <h3>Сравнение параметров</h3>
+        <div class="param-selector">
+          <button
+            v-for="(key, index) in Object.keys(measurements)"
+            :key="index"
+            :class="{ active: comparisonParams.includes(key) }"
+            @click="toggleComparisonParam(key)"
+          >
+            {{ formatKey(key) }}
+          </button>
         </div>
+        <div v-if="comparisonParams.length > 0" ref="comparisonChart" style="width: 100%; height: 400px;"></div>
+        <p v-else class="no-selection">Выберите параметры для сравнения</p>
       </div>
     </div>
   </div>
 </template>
-
 
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
 
 const props = defineProps({
-  isOpen: { type: Boolean, default: false },
-  sensorData: { type: Object, default: () => ({}) }
+  isOpen: {
+    type: Boolean,
+    default: false
+  },
+  sensorData: {
+    type: Object,
+    default: () => ({})
+  }
 });
 
 const emit = defineEmits(['close']);
@@ -94,152 +81,423 @@ const measurements = computed(() => {
   };
 });
 
-const closeModal = () => emit('close');
+const closeModal = () => {
+  emit('close');
+};
 
 const formatKey = (key) => {
-  const labels = { pm25: 'PM2.5', pm10: 'PM10', temperature: 'Температура', humidity: 'Влажность', pressure: 'Давление' };
+  const labels = {
+    pm25: 'PM2.5',
+    pm10: 'PM10',
+    temperature: 'Температура',
+    humidity: 'Влажность',
+    pressure: 'Давление'
+  };
   return labels[key] || key;
 };
 
 const getUnit = (key) => {
-  const units = { pm25: 'мкг/м³', pm10: 'мкг/м³', temperature: '°C', humidity: '%', pressure: 'гПа' };
+  const units = {
+    pm25: 'мкг/м³',
+    pm10: 'мкг/м³',
+    temperature: '°C',
+    humidity: '%',
+    pressure: 'гПа'
+  };
   return units[key] || '';
 };
 
-const selectSingleParam = (key) => { selectedSingleParam.value = key; };
+const selectSingleParam = (key) => {
+  selectedSingleParam.value = key;
+};
 
 const toggleComparisonParam = (key) => {
   const index = comparisonParams.value.indexOf(key);
-  if (index > -1) comparisonParams.value.splice(index, 1);
-  else comparisonParams.value.push(key);
+  if (index > -1) {
+    comparisonParams.value.splice(index, 1);
+  } else {
+    comparisonParams.value.push(key);
+  }
 };
 
 const generateTimeSeriesData = () => {
   const data = [];
   const now = new Date();
+
   for (let i = 0; i < 168; i++) {
     const date = new Date(now.getTime() - (168 - i) * 3600000);
     const hour = date.getHours();
+
     const basePM25 = 30 + Math.sin(i / 12) * 20 + Math.random() * 15;
     const pm25 = Math.max(0, basePM25 + (hour >= 7 && hour <= 9 ? 20 : 0) + (hour >= 17 && hour <= 19 ? 25 : 0));
+
     const basePM10 = pm25 * 1.5 + Math.random() * 10;
     const pm10 = Math.max(0, basePM10);
+
     const baseTemp = 15 + Math.sin(i / 24 * Math.PI * 2) * 8 + Math.random() * 3;
     const temperature = Math.round(baseTemp * 10) / 10;
+
     const baseHumidity = 60 + Math.sin(i / 24 * Math.PI * 2) * 15 + Math.random() * 10;
     const humidity = Math.max(30, Math.min(90, Math.round(baseHumidity)));
+
     const basePressure = 1013 + Math.sin(i / 48 * Math.PI * 2) * 5 + Math.random() * 3;
     const pressure = Math.round(basePressure * 10) / 10;
-    data.push({ date: date.toISOString(), pm25: Math.round(pm25 * 10) / 10, pm10: Math.round(pm10 * 10) / 10, temperature, humidity, pressure });
+
+    data.push({
+      date: date.toISOString(),
+      pm25: Math.round(pm25 * 10) / 10,
+      pm10: Math.round(pm10 * 10) / 10,
+      temperature: temperature,
+      humidity: humidity,
+      pressure: pressure
+    });
   }
+
   return data;
 };
 
 const renderCurrentValuesChart = () => {
-  if (currentValuesChartInstance.value) currentValuesChartInstance.value.dispose();
+  if (currentValuesChartInstance.value) {
+    currentValuesChartInstance.value.dispose();
+  }
+
   currentValuesChartInstance.value = echarts.init(currentValuesChart.value);
+
   const params = Object.keys(measurements.value);
   const candlestickData = params.map(key => {
     const current = measurements.value[key];
-    return [Math.max(0, current * 0.8), current * 1.2, Math.max(0, current * 0.8), current];
+    const min = Math.max(0, current * 0.8);
+    const max = current * 1.2;
+    return [min, max, min, current];
   });
-  currentValuesChartInstance.value.setOption({
-    title: { text: 'Текущие показатели датчика', left: 'center', top: 10 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: (p) => p[0].name + '<br/>Текущее: ' + p[0].data[3] + '<br/>Диапазон: ' + p[0].data[2].toFixed(1) + ' - ' + p[0].data[1].toFixed(1) },
-    brush: { toolbox: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear'], xAxisIndex: 0 },
-    toolbox: { feature: { brush: { type: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear'] }, dataZoom: { yAxisIndex: false }, restore: {}, saveAsImage: {} } },
-    grid: { left: '10%', right: '10%', bottom: '15%', top: '25%' },
-    xAxis: { type: 'category', data: params.map(p => formatKey(p)), scale: true, boundaryGap: true, axisLine: { onZero: false }, splitLine: { show: false } },
-    yAxis: { scale: true, splitArea: { show: true } },
-    dataZoom: [{ type: 'inside', start: 0, end: 100 }, { show: true, type: 'slider', top: '90%', start: 0, end: 100 }],
-    series: [{ name: 'Значения', type: 'candlestick', data: candlestickData, itemStyle: { color: '#3b82f6', color0: '#10b981', borderColor: '#2563eb', borderColor0: '#059669' } }]
-  });
+
+  const option = {
+    title: {
+      text: 'Текущие показатели датчика',
+      left: 'center',
+      top: 10
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      formatter: function(params) {
+        const param = params[0];
+        const data = param.data;
+        return param.name + '<br/>' +
+          'Текущее: ' + data[3] + '<br/>' +
+          'Диапазон: ' + data[2].toFixed(1) + ' - ' + data[1].toFixed(1);
+      }
+    },
+    brush: {
+      toolbox: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear'],
+      xAxisIndex: 0
+    },
+    toolbox: {
+      feature: {
+        brush: {
+          type: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear']
+        },
+        dataZoom: {
+          yAxisIndex: false
+        },
+        restore: {},
+        saveAsImage: {}
+      }
+    },
+    grid: {
+      left: '10%',
+      right: '10%',
+      bottom: '15%',
+      top: '25%'
+    },
+    xAxis: {
+      type: 'category',
+      data: params.map(p => formatKey(p)),
+      scale: true,
+      boundaryGap: true,
+      axisLine: { onZero: false },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      scale: true,
+      splitArea: {
+        show: true
+      }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        show: true,
+        type: 'slider',
+        top: '90%',
+        start: 0,
+        end: 100
+      }
+    ],
+    series: [
+      {
+        name: 'Значения',
+        type: 'candlestick',
+        data: candlestickData,
+        itemStyle: {
+          color: '#3b82f6',
+          color0: '#10b981',
+          borderColor: '#2563eb',
+          borderColor0: '#059669'
+        }
+      }
+    ]
+  };
+
+  currentValuesChartInstance.value.setOption(option);
 };
 
 const renderTimeSeriesChart = () => {
-  if (timeSeriesChartInstance.value) timeSeriesChartInstance.value.dispose();
+  if (timeSeriesChartInstance.value) {
+    timeSeriesChartInstance.value.dispose();
+  }
+
   timeSeriesChartInstance.value = echarts.init(timeSeriesChart.value);
   const data = generateTimeSeriesData();
+
   const param = selectedSingleParam.value;
-  const colors = { pm25: '#ff6384', pm10: '#36a2eb', temperature: '#ffce56', humidity: '#4bc0c0', pressure: '#9966ff' };
-  const units = { pm25: 'мкг/м³', pm10: 'мкг/м³', temperature: '°C', humidity: '%', pressure: 'гПа' };
-  timeSeriesChartInstance.value.setOption({
-    title: { text: formatKey(param) + ' за 7 дней', left: 'center', top: 10 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    legend: { data: [formatKey(param)], top: 40 },
-    grid: { left: '3%', right: '3%', bottom: '10%', top: '20%', containLabel: true },
-    xAxis: { type: 'time', boundaryGap: false },
-    yAxis: { type: 'value', name: formatKey(param) + ' (' + units[param] + ')', axisLine: { lineStyle: { color: colors[param] } } },
-    dataZoom: [{ type: 'inside', start: 0, end: 100 }, { start: 0, end: 100 }],
-    series: [{ name: formatKey(param), type: 'line', smooth: true, data: data.map(d => [d.date, d[param]]), itemStyle: { color: colors[param] }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[param] + '4D' }, { offset: 1, color: colors[param] + '0D' }]) } }]
-  });
+  const colors = {
+    pm25: '#ff6384',
+    pm10: '#36a2eb',
+    temperature: '#ffce56',
+    humidity: '#4bc0c0',
+    pressure: '#9966ff'
+  };
+
+  const units = {
+    pm25: 'мкг/м³',
+    pm10: 'мкг/м³',
+    temperature: '°C',
+    humidity: '%',
+    pressure: 'гПа'
+  };
+
+  const option = {
+    title: {
+      text: formatKey(param) + ' за 7 дней',
+      left: 'center',
+      top: 10
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    legend: {
+      data: [formatKey(param)],
+      top: 40
+    },
+    grid: {
+      left: '3%',
+      right: '3%',
+      bottom: '10%',
+      top: '20%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'time',
+      boundaryGap: false
+    },
+    yAxis: {
+      type: 'value',
+      name: formatKey(param) + ' (' + units[param] + ')',
+      axisLine: {
+        lineStyle: {
+          color: colors[param]
+        }
+      }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        start: 0,
+        end: 100
+      }
+    ],
+    series: [
+      {
+        name: formatKey(param),
+        type: 'line',
+        smooth: true,
+        data: data.map(d => [d.date, d[param]]),
+        itemStyle: {
+          color: colors[param]
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: colors[param] + '4D' },
+            { offset: 1, color: colors[param] + '0D' }
+          ])
+        }
+      }
+    ]
+  };
+
+  timeSeriesChartInstance.value.setOption(option);
 };
 
 const renderComparisonChart = () => {
-  if (comparisonChartInstance.value) comparisonChartInstance.value.dispose();
-  if (comparisonParams.value.length === 0) return;
+  if (comparisonChartInstance.value) {
+    comparisonChartInstance.value.dispose();
+  }
+
+  if (comparisonParams.value.length === 0) {
+    return;
+  }
+
   comparisonChartInstance.value = echarts.init(comparisonChart.value);
   const data = generateTimeSeriesData();
-  const colors = { pm25: '#ff6384', pm10: '#36a2eb', temperature: '#ffce56', humidity: '#4bc0c0', pressure: '#9966ff' };
-  const units = { pm25: 'мкг/м³', pm10: 'мкг/м³', temperature: '°C', humidity: '%', pressure: 'гПа' };
-  const yAxisConfig = comparisonParams.value.map((param, index) => ({ type: 'value', name: formatKey(param) + ' (' + units[param] + ')', position: index % 2 === 0 ? 'left' : 'right', offset: Math.floor(index / 2) * 60, axisLine: { lineStyle: { color: colors[param] } }, axisLabel: { color: colors[param] } }));
-  const series = comparisonParams.value.map((param, index) => ({ name: formatKey(param), type: 'line', smooth: true, yAxisIndex: index, data: data.map(d => [d.date, d[param]]), itemStyle: { color: colors[param] }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[param] + '4D' }, { offset: 1, color: colors[param] + '0D' }]) } }));
-  comparisonChartInstance.value.setOption({
-    title: { text: 'Сравнение параметров за 7 дней', left: 'center', top: 10 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    legend: { data: comparisonParams.value.map(p => formatKey(p)), top: 40 },
-    grid: { left: '3%', right: '3%', bottom: '10%', top: '20%', containLabel: true },
-    xAxis: { type: 'time', boundaryGap: false },
+
+  const colors = {
+    pm25: '#ff6384',
+    pm10: '#36a2eb',
+    temperature: '#ffce56',
+    humidity: '#4bc0c0',
+    pressure: '#9966ff'
+  };
+
+  const units = {
+    pm25: 'мкг/м³',
+    pm10: 'мкг/м³',
+    temperature: '°C',
+    humidity: '%',
+    pressure: 'гПа'
+  };
+
+  const yAxisConfig = comparisonParams.value.map((param, index) => ({
+    type: 'value',
+    name: formatKey(param) + ' (' + units[param] + ')',
+    position: index % 2 === 0 ? 'left' : 'right',
+    offset: Math.floor(index / 2) * 60,
+    axisLine: {
+      lineStyle: {
+        color: colors[param]
+      }
+    },
+    axisLabel: {
+      color: colors[param]
+    }
+  }));
+
+  const series = comparisonParams.value.map((param, index) => ({
+    name: formatKey(param),
+    type: 'line',
+    smooth: true,
+    yAxisIndex: index,
+    data: data.map(d => [d.date, d[param]]),
+    itemStyle: {
+      color: colors[param]
+    },
+    areaStyle: {
+      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+        { offset: 0, color: colors[param] + '4D' },
+        { offset: 1, color: colors[param] + '0D' }
+      ])
+    }
+  }));
+
+  const option = {
+    title: {
+      text: 'Сравнение параметров за 7 дней',
+      left: 'center',
+      top: 10
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    legend: {
+      data: comparisonParams.value.map(p => formatKey(p)),
+      top: 40
+    },
+    grid: {
+      left: '3%',
+      right: '3%',
+      bottom: '10%',
+      top: '20%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'time',
+      boundaryGap: false
+    },
     yAxis: yAxisConfig,
-    dataZoom: [{ type: 'inside', start: 0, end: 100 }, { start: 0, end: 100 }],
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        start: 0,
+        end: 100
+      }
+    ],
     series: series
-  });
+  };
+
+  comparisonChartInstance.value.setOption(option);
 };
 
-const renderCharts = () => { renderCurrentValuesChart(); renderTimeSeriesChart(); renderComparisonChart(); };
+const renderCharts = () => {
+  renderCurrentValuesChart();
+  renderTimeSeriesChart();
+  renderComparisonChart();
+};
 
-watch(() => props.isOpen, (newVal) => { if (newVal) nextTick(() => renderCharts()); });
-watch(selectedSingleParam, () => { if (props.isOpen) nextTick(() => renderTimeSeriesChart()); });
-watch(comparisonParams, () => { if (props.isOpen) nextTick(() => renderComparisonChart()); }, { deep: true });
+watch(() => props.isOpen, (newVal) => {
+  if (newVal) {
+    nextTick(() => {
+      renderCharts();
+    });
+  }
+});
+
+watch(selectedSingleParam, () => {
+  if (props.isOpen) {
+    nextTick(() => {
+      renderTimeSeriesChart();
+    });
+  }
+});
+
+watch(comparisonParams, () => {
+  if (props.isOpen) {
+    nextTick(() => {
+      renderComparisonChart();
+    });
+  }
+}, { deep: true });
 
 onBeforeUnmount(() => {
-  if (timeSeriesChartInstance.value) timeSeriesChartInstance.value.dispose();
-  if (comparisonChartInstance.value) comparisonChartInstance.value.dispose();
-  if (currentValuesChartInstance.value) currentValuesChartInstance.value.dispose();
-});
-</script>
-          boundaryGap: false
-        },
-        yAxis: yAxisConfig,
-        dataZoom: [
-          {
-            type: 'inside',
-            start: 0,
-            end: 100
-          },
-          {
-            start: 0,
-            end: 100
-          }
-        ],
-        series: series
-      };
-
-      this.comparisonChart.setOption(option);
-    }
-  },
-  beforeUnmount() {
-    if (this.timeSeriesChart) {
-      this.timeSeriesChart.dispose();
-    }
-    if (this.comparisonChart) {
-      this.comparisonChart.dispose();
-    }
-    if (this.currentValuesChart) {
-      this.currentValuesChart.dispose();
-    }
+  if (timeSeriesChartInstance.value) {
+    timeSeriesChartInstance.value.dispose();
   }
-};
+  if (comparisonChartInstance.value) {
+    comparisonChartInstance.value.dispose();
+  }
+  if (currentValuesChartInstance.value) {
+    currentValuesChartInstance.value.dispose();
+  }
+});
 </script>
 
 <style scoped>
@@ -293,119 +551,49 @@ h2 {
 }
 
 h3 {
-  margin: 20px 0 10px 0;
+  margin: 30px 0 15px 0;
   color: #555;
   font-size: 18px;
 }
 
-.data-section {
+.current-values,
+.time-series-section,
+.comparison-section {
   margin-bottom: 30px;
 }
 
-.current-values-chart {
-  margin-bottom: 20px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-.data-table th,
-.data-table td {
-  padding: 10px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-.data-table th:first-child,
-.data-table td:first-child {
-  text-align: left;
-  padding-left: 15px;
-}
-
-.data-table th {
-  background: #f5f5f5;
-  font-weight: 600;
-  color: #333;
-}
-
-.data-table tr:hover {
-  background: #f9f9f9;
-}
-
-.clickable-row {
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.clickable-row:hover {
-  background: #e3f2fd !important;
-}
-
-.selected-row {
-  background: #bbdefb !important;
-}
-
-.charts-section {
-  margin-top: 20px;
+.param-selector {
   display: flex;
-  flex-direction: column;
-  gap: 30px;
-}
-
-.chart-container-large {
-  width: 100%;
-  height: 500px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.comparison-section {
-  width: 100%;
-}
-
-.comparison-section h3 {
-  margin: 0 0 15px 0;
-  color: #555;
-  font-size: 18px;
-}
-
-.comparison-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  gap: 10px;
   margin-bottom: 15px;
-  padding: 15px;
-  background: #f5f5f5;
-  border-radius: 8px;
+  flex-wrap: wrap;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.param-selector button {
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
   cursor: pointer;
   font-size: 14px;
-  color: #333;
+  transition: all 0.2s;
 }
 
-.param-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+.param-selector button:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
 }
 
-.chart-container-comparison {
-  width: 100%;
-  height: 400px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
+.param-selector button.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.no-selection {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-style: italic;
 }
 </style>
