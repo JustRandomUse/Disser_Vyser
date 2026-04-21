@@ -62,65 +62,65 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'SidePanel',
-  props: {
-    sensors: {
-      type: Array,
-      default: () => []
-    }
-  },
-  data() {
-    return {
-      isCollapsed: false,
-      selectedPreset: '',
-      selectedSensors: [],
-      presets: {
-        left_bank: ['Черемушки', 'Взлетка', 'Академгородок'],
-        nikolaevka: ['Николаевка'],
-        center: ['Центр', 'Площадь Революции'],
-        soviet: ['Советский', 'Академгородок', 'Взлетка'],
-        zheleznodorozhny: ['Вокзал', 'Черемушки'],
-        kirovsky: ['Кировский', 'Николаевка'],
-        leninsky: ['Ленинский', 'Центр'],
-        oktyabrsky: ['Октябрьский'],
-        sverdlovsky: ['Свердловский']
-      }
-    };
-  },
-  computed: {
-    allSelected() {
-      return this.sensors.length > 0 && this.selectedSensors.length === this.sensors.length;
-    }
-  },
-  methods: {
-    togglePanel() {
-      this.isCollapsed = !this.isCollapsed;
-    },
-    toggleAll() {
-      if (this.allSelected) {
-        this.selectedSensors = [];
-      } else {
-        this.selectedSensors = this.sensors.map(s => s.id);
-      }
-    },
-    applyPreset() {
-      if (!this.selectedPreset) {
-        this.selectedSensors = [];
-        return;
-      }
+<script setup>
+import { ref, computed } from 'vue';
 
-      const presetNames = this.presets[this.selectedPreset] || [];
-      this.selectedSensors = this.sensors
-        .filter(sensor => presetNames.some(name => sensor.name.includes(name)))
-        .map(s => s.id);
-    },
-    showStatistics() {
-      const selected = this.sensors.filter(s => this.selectedSensors.includes(s.id));
-      this.$emit('show-statistics', selected);
-    }
+const props = defineProps({
+  sensors: {
+    type: Array,
+    default: () => []
   }
+});
+
+const emit = defineEmits(['show-statistics']);
+
+const isCollapsed = ref(false);
+const selectedPreset = ref('');
+const selectedSensors = ref([]);
+
+const presets = {
+  left_bank: ['Черемушки', 'Взлетка', 'Академгородок'],
+  nikolaevka: ['Николаевка'],
+  center: ['Центр', 'Площадь Революции'],
+  soviet: ['Советский', 'Академгородок', 'Взлетка'],
+  zheleznodorozhny: ['Вокзал', 'Черемушки'],
+  kirovsky: ['Кировский', 'Николаевка'],
+  leninsky: ['Ленинский', 'Центр'],
+  oktyabrsky: ['Октябрьский'],
+  sverdlovsky: ['Свердловский']
+};
+
+const allSelected = computed(() => {
+  return props.sensors.length > 0 && selectedSensors.value.length === props.sensors.length;
+});
+
+const togglePanel = () => {
+  isCollapsed.value = !isCollapsed.value;
+};
+
+const toggleAll = () => {
+  if (allSelected.value) {
+    selectedSensors.value = [];
+  } else {
+    selectedSensors.value = props.sensors.map(s => s.id);
+  }
+};
+
+const applyPreset = () => {
+  if (!selectedPreset.value) {
+    selectedSensors.value = [];
+    return;
+  }
+
+  const presetNames = presets[selectedPreset.value] || [];
+  selectedSensors.value = props.sensors
+    .filter(sensor => presetNames.some(name => sensor.name.includes(name)))
+    .map(s => s.id);
+};
+
+const showStatistics = () => {
+  const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
+  emit('show-statistics', selected);
 };
 </script>
 
