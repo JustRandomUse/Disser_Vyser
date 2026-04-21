@@ -31,61 +31,61 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Timeline',
-  props: {
-    date: {
-      type: Date,
-      default: () => new Date()
-    },
-    timePoints: {
-      type: Array,
-      default: () => []
-    }
+<script setup>
+import { ref, computed } from 'vue';
+
+const props = defineProps({
+  date: {
+    type: Date,
+    default: () => new Date()
   },
-  data() {
-    return {
-      currentPage: 1,
-      pointsPerPage: 15,
-      selectedIndex: 0
-    };
-  },
-  computed: {
-    formattedDate() {
-      return this.date.toLocaleDateString('ru-RU', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-    },
-    totalPages() {
-      return Math.ceil(this.timePoints.length / this.pointsPerPage);
-    },
-    visiblePoints() {
-      const start = (this.currentPage - 1) * this.pointsPerPage;
-      const end = start + this.pointsPerPage;
-      return this.timePoints.slice(start, end);
-    }
-  },
-  methods: {
-    selectPoint(index) {
-      this.selectedIndex = index;
-      const globalIndex = (this.currentPage - 1) * this.pointsPerPage + index;
-      this.$emit('time-selected', this.timePoints[globalIndex]);
-    },
-    previousPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-        this.selectedIndex = 0;
-      }
-    },
-    nextPage() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++;
-        this.selectedIndex = 0;
-      }
-    }
+  timePoints: {
+    type: Array,
+    default: () => []
+  }
+});
+
+const emit = defineEmits(['open-calendar', 'time-selected']);
+
+const currentPage = ref(1);
+const pointsPerPage = 15;
+const selectedIndex = ref(0);
+
+const formattedDate = computed(() => {
+  return props.date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(props.timePoints.length / pointsPerPage);
+});
+
+const visiblePoints = computed(() => {
+  const start = (currentPage.value - 1) * pointsPerPage;
+  const end = start + pointsPerPage;
+  return props.timePoints.slice(start, end);
+});
+
+const selectPoint = (index) => {
+  selectedIndex.value = index;
+  const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
+  emit('time-selected', props.timePoints[globalIndex]);
+};
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    selectedIndex.value = 0;
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+    selectedIndex.value = 0;
   }
 };
 </script>

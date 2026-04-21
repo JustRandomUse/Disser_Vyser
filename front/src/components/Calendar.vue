@@ -6,10 +6,10 @@
         <span class="month-year">{{ monthYear }}</span>
         <button @click="nextMonth" class="nav-btn">→</button>
       </div>
-      
+
       <div class="calendar-grid">
         <div v-for="day in weekDays" :key="day" class="week-day">{{ day }}</div>
-        
+
         <div
           v-for="(day, index) in calendarDays"
           :key="index"
@@ -27,7 +27,7 @@
           {{ day.date }}
         </div>
       </div>
-      
+
       <div class="calendar-footer">
         <button @click="selectToday" class="today-btn">Сегодня</button>
         <button @click="close" class="close-btn">Закрыть</button>
@@ -36,175 +36,172 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Calendar',
-  props: {
-    isOpen: {
-      type: Boolean,
-      default: false
-    },
-    selectedDate: {
-      type: Date,
-      default: () => new Date()
-    }
-  },
-  data() {
-    return {
-      currentMonth: new Date().getMonth(),
-      currentYear: new Date().getFullYear(),
-      weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-      startDate: null,
-      endDate: null,
-      isSelectingRange: false
-    };
-  },
-  computed: {
-    monthYear() {
-      const months = [
-        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-      ];
-      return `${months[this.currentMonth]} ${this.currentYear}`;
-    },
-    calendarDays() {
-      const days = [];
-      const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-      const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
-      
-      // Get day of week (0 = Sunday, 1 = Monday, etc.)
-      let startDay = firstDay.getDay();
-      startDay = startDay === 0 ? 6 : startDay - 1; // Convert to Monday = 0
-      
-      // Previous month days
-      const prevMonthLastDay = new Date(this.currentYear, this.currentMonth, 0).getDate();
-      for (let i = startDay - 1; i >= 0; i--) {
-        days.push({
-          date: prevMonthLastDay - i,
-          month: this.currentMonth - 1,
-          year: this.currentYear,
-          otherMonth: true
-        });
-      }
-      
-      // Current month days
-      for (let i = 1; i <= lastDay.getDate(); i++) {
-        days.push({
-          date: i,
-          month: this.currentMonth,
-          year: this.currentYear,
-          otherMonth: false
-        });
-      }
-      
-      // Next month days
-      const remainingDays = 42 - days.length; // 6 rows * 7 days
-      for (let i = 1; i <= remainingDays; i++) {
-        days.push({
-          date: i,
-          month: this.currentMonth + 1,
-          year: this.currentYear,
-          otherMonth: true
-        });
-      }
-      
-      return days;
-    }
-  },
-  methods: {
-    close() {
-      this.$emit('close');
-    },
-    previousMonth() {
-      if (this.currentMonth === 0) {
-        this.currentMonth = 11;
-        this.currentYear--;
-      } else {
-        this.currentMonth--;
-      }
-    },
-    nextMonth() {
-      if (this.currentMonth === 11) {
-        this.currentMonth = 0;
-        this.currentYear++;
-      } else {
-        this.currentMonth++;
-      }
-    },
-    selectDate(day) {
-      if (day.otherMonth) return;
+<script setup>
+import { ref, computed } from 'vue';
 
-      const clickedDate = new Date(day.year, day.month, day.date);
-
-      // First click - set start date
-      if (!this.startDate || (this.startDate && this.endDate)) {
-        this.startDate = clickedDate;
-        this.endDate = null;
-        this.isSelectingRange = true;
-      }
-      // Second click - set end date
-      else if (this.startDate && !this.endDate) {
-        if (clickedDate < this.startDate) {
-          // If clicked date is before start, swap them
-          this.endDate = this.startDate;
-          this.startDate = clickedDate;
-        } else {
-          this.endDate = clickedDate;
-        }
-        this.isSelectingRange = false;
-
-        // Emit the range
-        this.$emit('date-range-selected', {
-          start: this.startDate,
-          end: this.endDate
-        });
-      }
-    },
-    selectToday() {
-      const today = new Date();
-      this.currentMonth = today.getMonth();
-      this.currentYear = today.getFullYear();
-      this.$emit('date-selected', today);
-      this.close();
-    },
-    isSelected(day) {
-      if (!this.selectedDate || day.otherMonth) return false;
-      return (
-        day.date === this.selectedDate.getDate() &&
-        day.month === this.selectedDate.getMonth() &&
-        day.year === this.selectedDate.getFullYear()
-      );
-    },
-    isToday(day) {
-      const today = new Date();
-      return (
-        day.date === today.getDate() &&
-        day.month === today.getMonth() &&
-        day.year === today.getFullYear()
-      );
-    },
-    isRangeStart(day) {
-      if (!this.startDate || day.otherMonth) return false;
-      return (
-        day.date === this.startDate.getDate() &&
-        day.month === this.startDate.getMonth() &&
-        day.year === this.startDate.getFullYear()
-      );
-    },
-    isRangeEnd(day) {
-      if (!this.endDate || day.otherMonth) return false;
-      return (
-        day.date === this.endDate.getDate() &&
-        day.month === this.endDate.getMonth() &&
-        day.year === this.endDate.getFullYear()
-      );
-    },
-    isInRange(day) {
-      if (!this.startDate || !this.endDate || day.otherMonth) return false;
-      const dayDate = new Date(day.year, day.month, day.date);
-      return dayDate > this.startDate && dayDate < this.endDate;
-    }
+const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false
+  },
+  selectedDate: {
+    type: Date,
+    default: () => new Date()
   }
+});
+
+const emit = defineEmits(['close', 'date-selected', 'date-range-selected']);
+
+const currentMonth = ref(new Date().getMonth());
+const currentYear = ref(new Date().getFullYear());
+const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const startDate = ref(null);
+const endDate = ref(null);
+const isSelectingRange = ref(false);
+
+const monthYear = computed(() => {
+  const months = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ];
+  return `${months[currentMonth.value]} ${currentYear.value}`;
+});
+
+const calendarDays = computed(() => {
+  const days = [];
+  const firstDay = new Date(currentYear.value, currentMonth.value, 1);
+  const lastDay = new Date(currentYear.value, currentMonth.value + 1, 0);
+
+  let startDay = firstDay.getDay();
+  startDay = startDay === 0 ? 6 : startDay - 1;
+
+  const prevMonthLastDay = new Date(currentYear.value, currentMonth.value, 0).getDate();
+  for (let i = startDay - 1; i >= 0; i--) {
+    days.push({
+      date: prevMonthLastDay - i,
+      month: currentMonth.value - 1,
+      year: currentYear.value,
+      otherMonth: true
+    });
+  }
+
+  for (let i = 1; i <= lastDay.getDate(); i++) {
+    days.push({
+      date: i,
+      month: currentMonth.value,
+      year: currentYear.value,
+      otherMonth: false
+    });
+  }
+
+  const remainingDays = 42 - days.length;
+  for (let i = 1; i <= remainingDays; i++) {
+    days.push({
+      date: i,
+      month: currentMonth.value + 1,
+      year: currentYear.value,
+      otherMonth: true
+    });
+  }
+
+  return days;
+});
+
+const close = () => {
+  emit('close');
+};
+
+const previousMonth = () => {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11;
+    currentYear.value--;
+  } else {
+    currentMonth.value--;
+  }
+};
+
+const nextMonth = () => {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0;
+    currentYear.value++;
+  } else {
+    currentMonth.value++;
+  }
+};
+
+const selectDate = (day) => {
+  if (day.otherMonth) return;
+
+  const clickedDate = new Date(day.year, day.month, day.date);
+
+  if (!startDate.value || (startDate.value && endDate.value)) {
+    startDate.value = clickedDate;
+    endDate.value = null;
+    isSelectingRange.value = true;
+  } else if (startDate.value && !endDate.value) {
+    if (clickedDate < startDate.value) {
+      endDate.value = startDate.value;
+      startDate.value = clickedDate;
+    } else {
+      endDate.value = clickedDate;
+    }
+    isSelectingRange.value = false;
+
+    emit('date-range-selected', {
+      start: startDate.value,
+      end: endDate.value
+    });
+  }
+};
+
+const selectToday = () => {
+  const today = new Date();
+  currentMonth.value = today.getMonth();
+  currentYear.value = today.getFullYear();
+  emit('date-selected', today);
+  close();
+};
+
+const isSelected = (day) => {
+  if (!props.selectedDate || day.otherMonth) return false;
+  return (
+    day.date === props.selectedDate.getDate() &&
+    day.month === props.selectedDate.getMonth() &&
+    day.year === props.selectedDate.getFullYear()
+  );
+};
+
+const isToday = (day) => {
+  const today = new Date();
+  return (
+    day.date === today.getDate() &&
+    day.month === today.getMonth() &&
+    day.year === today.getFullYear()
+  );
+};
+
+const isRangeStart = (day) => {
+  if (!startDate.value || day.otherMonth) return false;
+  return (
+    day.date === startDate.value.getDate() &&
+    day.month === startDate.value.getMonth() &&
+    day.year === startDate.value.getFullYear()
+  );
+};
+
+const isRangeEnd = (day) => {
+  if (!endDate.value || day.otherMonth) return false;
+  return (
+    day.date === endDate.value.getDate() &&
+    day.month === endDate.value.getMonth() &&
+    day.year === endDate.value.getFullYear()
+  );
+};
+
+const isInRange = (day) => {
+  if (!startDate.value || !endDate.value || day.otherMonth) return false;
+  const dayDate = new Date(day.year, day.month, day.date);
+  return dayDate > startDate.value && dayDate < endDate.value;
 };
 </script>
 

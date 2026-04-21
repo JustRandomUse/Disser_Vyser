@@ -18,42 +18,39 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Indicators',
-  props: {
-    selectedIndex: {
-      type: Number,
-      default: 8
-    }
-  },
-  data() {
-    return {
-      isOpen: false,
-      indicators: [
-        { name: 'InstantAQI', key: 'aqi' },
-        { name: 'PM2.5 (мкг/м³)', key: 'pm25' },
-        { name: 'PM10 (мкг/м³)', key: 'pm10' },
-        { name: 'Температура (°С)', key: 'temperature' },
-        { name: 'Влажность (%)', key: 'humidity' },
-        { name: 'Давление (гПа)', key: 'pressure' }
-      ]
-    };
-  },
-  computed: {
-    selectedIndicator() {
-      return this.indicators[this.selectedIndex] || this.indicators[0];
-    }
-  },
-  methods: {
-    toggleDropdown() {
-      this.isOpen = !this.isOpen;
-    },
-    selectIndicator(index) {
-      this.$emit('indicator-selected', index);
-      this.isOpen = false;
-    }
+<script setup>
+import { ref, computed } from 'vue';
+
+const props = defineProps({
+  selectedIndex: {
+    type: Number,
+    default: 8
   }
+});
+
+const emit = defineEmits(['indicator-selected']);
+
+const isOpen = ref(false);
+const indicators = [
+  { name: 'InstantAQI', key: 'aqi' },
+  { name: 'PM2.5 (мкг/м³)', key: 'pm25' },
+  { name: 'PM10 (мкг/м³)', key: 'pm10' },
+  { name: 'Температура (°С)', key: 'temperature' },
+  { name: 'Влажность (%)', key: 'humidity' },
+  { name: 'Давление (гПа)', key: 'pressure' }
+];
+
+const selectedIndicator = computed(() => {
+  return indicators[props.selectedIndex] || indicators[0];
+});
+
+const toggleDropdown = () => {
+  isOpen.value = !isOpen.value;
+};
+
+const selectIndicator = (index) => {
+  emit('indicator-selected', index);
+  isOpen.value = false;
 };
 </script>
 
