@@ -17,7 +17,10 @@
         v-for="(point, index) in visiblePoints"
         :key="index"
         class="point"
-        :class="{ selected: index === selectedIndex }"
+        :class="{
+          selected: index === selectedIndex,
+          'in-range': isInSelectedRange(index)
+        }"
         @click="selectPoint(index)"
       >
         <div class="point-circle" :style="{ background: point.color }"></div>
@@ -49,11 +52,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['open-calendar', 'time-selected']);
+const emit = defineEmits(['open-calendar', 'time-selected', 'range-selected']);
 
 const currentPage = ref(1);
 const pointsPerPage = 15;
 const selectedIndex = ref(0);
+const rangeSelectionStart = ref(null);
+const rangeSelectionEnd = ref(null);
+const isSelectingRange = ref(false);
 
 // Watch for date changes and reset pagination
 watch(() => props.date, () => {
@@ -97,9 +103,44 @@ const visiblePoints = computed(() => {
 });
 
 const selectPoint = (index) => {
-  selectedIndex.value = index;
   const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
-  emit('time-selected', props.timePoints[globalIndex]);
+  const point = props.timePoints[globalIndex];
+
+  // Shift key for range selection
+  if (window.event && window.event.shiftKey && rangeSelectionStart.value !== null) {
+    // Second point - complete range selection
+    rangeSelectionEnd.value = globalIndex;
+    isSelectingRange.value = true;
+
+    const startIdx = Math.min(rangeSelectionStart.value, rangeSelectionEnd.value);
+    const endIdx = Math.max(rangeSelectionStart.value, rangeSelectionEnd.value);
+
+    emit('range-selected', {
+      start: props.timePoints[startIdx],
+      end: props.timePoints[endIdx],
+      points: props.timePoints.slice(startIdx, endIdx + 1)
+    });
+  } else {
+    // Single point selection or start of range
+    selectedIndex.value = index;
+    rangeSelectionStart.value = globalIndex;
+    rangeSelectionEnd.value = null;
+    isSelectingRange.value = false;
+
+    emit('time-selected', point);
+  }
+};
+
+const isInSelectedRange = (index) => {
+  if (!isSelectingRange.value || rangeSelectionStart.value === null || rangeSelectionEnd.value === null) {
+    return false;
+  }
+
+  const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
+  const startIdx = Math.min(rangeSelectionStart.value, rangeSelectionEnd.value);
+  const endIdx = Math.max(rangeSelectionStart.value, rangeSelectionEnd.value);
+
+  return globalIndex >= startIdx && globalIndex <= endIdx;
 };
 
 const previousPage = () => {
@@ -228,6 +269,16 @@ const nextPage = () => {
 
 .point.selected {
   font-weight: 500;
+}
+
+.point.in-range .point-circle {
+  background: #93c5fd !important;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.point.in-range {
+  font-weight: 500;
+  color: #1e40af;
 }
 
 .point-text {

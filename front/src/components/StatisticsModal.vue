@@ -6,6 +6,17 @@
       <h2>Статистика по выбранным датчикам</h2>
       <p class="sensors-count">Датчиков: {{ sensors.length }}</p>
 
+      <div v-if="timeSeriesData && timeSeriesData.length > 0" class="parameter-selector">
+        <label>Параметр:</label>
+        <select v-model="selectedParameter" @change="renderChart">
+          <option value="pm25">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="temperature">Температура</option>
+          <option value="humidity">Влажность</option>
+          <option value="pressure">Давление</option>
+        </select>
+      </div>
+
       <div class="stats-section">
         <h3>Средние значения</h3>
         <table class="stats-table">
@@ -49,6 +60,18 @@ const props = defineProps({
   sensors: {
     type: Array,
     default: () => []
+  },
+  timeSeriesData: {
+    type: Array,
+    default: () => []
+  },
+  dateRange: {
+    type: Object,
+    default: null
+  },
+  rangeType: {
+    type: String,
+    default: 'instant' // 'instant' | 'hour' | 'day' | 'month' | 'year'
   }
 });
 
@@ -56,6 +79,7 @@ const emit = defineEmits(['close']);
 
 const statsChart = ref(null);
 const chartInstance = ref(null);
+const selectedParameter = ref('pm25');
 
 const statistics = computed(() => {
   if (props.sensors.length === 0) return {};
@@ -114,6 +138,127 @@ const renderChart = () => {
 
   chartInstance.value = echarts.init(statsChart.value);
 
+  // Check if we have time series data
+  if (props.timeSeriesData && props.timeSeriesData.length > 0 && props.rangeType !== 'instant') {
+    renderTimeSeriesChart();
+  } else {
+    renderInstantChart();
+  }
+};
+
+const renderTimeSeriesChart = () => {
+  const params = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
+  const selectedParam = selectedParameter.value;
+
+  // Prepare data for each site
+  const series = props.timeSeriesData.map(site => {
+    const values = site.data.map(d => d[selectedParam]);
+    const times = site.data.map(d => d.time);
+
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    return {
+      name: site.name,
+      type: 'line',
+      data: values,
+      smooth: true,
+      markLine: {
+        data: [
+          { type: 'average', name: 'Среднее', label: { formatter: 'Среднее: {c}' } },
+          { type: 'min', name: 'Минимум', label: { formatter: 'Мин: {c}' } },
+          { type: 'max', name: 'Максимум', label: { formatter: 'Макс: {c}' } }
+        ],
+        lineStyle: {
+          type: 'dashed'
+        }
+      }
+    };
+  });
+
+  const times = props.timeSeriesData[0]?.data.map(d => {
+    const date = new Date(d.time);
+    if (props.rangeType === 'hour') {
+      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    } else if (props.rangeType === 'day') {
+      return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+    } else if (props.rangeType === 'month') {
+      return date.toLocaleDateString('ru-RU', { month: 'short', year: 'numeric' });
+    } else if (props.rangeType === 'year') {
+      return date.getFullYear().toString();
+    }
+    return d.time;
+  }) || [];
+
+  const option = {
+    title: {
+      text: `${formatKey(selectedParam)} за период`,
+      left: 'center',
+      top: 10
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    legend: {
+      data: props.timeSeriesData.map(s => s.name),
+      top: 40,
+      type: 'scroll'
+    },
+    grid: {
+      left: '10%',
+      right: '10%',
+      bottom: '15%',
+      top: '25%'
+    },
+    xAxis: {
+      type: 'category',
+      data: times,
+      boundaryGap: false,
+      axisLabel: {
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: getUnit(selectedParam),
+      axisLabel: {
+        formatter: '{value}'
+      }
+    },
+    series: series,
+    toolbox: {
+      feature: {
+        dataZoom: {
+          yAxisIndex: 'none'
+        },
+        restore: {},
+        saveAsImage: {}
+      }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100
+      },
+      {
+        show: true,
+        type: 'slider',
+        top: '90%',
+        start: 0,
+        end: 100
+      }
+    ]
+  };
+
+  chartInstance.value.setOption(option);
+};
+
+const renderInstantChart = () => {
   const params = Object.keys(statistics.value);
   const candlestickData = params.map(p => {
     const stat = statistics.value[p];
@@ -319,5 +464,36 @@ h3 {
   background: #f9f9f9;
   border-radius: 8px;
   padding: 10px;
+}
+
+.parameter-selector {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.parameter-selector label {
+  font-weight: 600;
+  color: #333;
+}
+
+.parameter-selector select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.parameter-selector select:hover {
+  border-color: #3b82f6;
+}
+
+.parameter-selector select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 </style>

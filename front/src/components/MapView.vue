@@ -26,6 +26,14 @@ const props = defineProps({
   selectedIndicator: {
     type: Number,
     default: 1
+  },
+  selectionMode: {
+    type: String,
+    default: 'instant' // 'instant' | 'range'
+  },
+  dateRange: {
+    type: Object,
+    default: null
   }
 });
 
@@ -145,6 +153,9 @@ const updateMarkers = (sensors) => {
       let value = sensor[selectedParam] || 0;
       let displayValue = Math.round(value * 10) / 10;
 
+      // Add visual indicator for range mode
+      const isRangeMode = props.selectionMode === 'range';
+
       if (selectedParam === 'aqi') {
         const pm25 = sensor.pm25 || 0;
         if (pm25 <= 12) value = pm25 * 50 / 12;
@@ -160,13 +171,13 @@ const updateMarkers = (sensors) => {
 
       feature.setStyle(new Style({
         image: new CircleStyle({
-          radius: 20,
+          radius: isRangeMode ? 22 : 20,
           fill: new Fill({
             color: color
           }),
           stroke: new Stroke({
-            color: '#fff',
-            width: 2
+            color: isRangeMode ? '#FFD700' : '#fff',
+            width: isRangeMode ? 3 : 2
           })
         }),
         text: new Text({
@@ -193,6 +204,10 @@ watch(() => props.sensors, (newSensors) => {
 }, { deep: true });
 
 watch(() => props.selectedIndicator, () => {
+  updateMarkers(props.sensors);
+});
+
+watch(() => props.selectionMode, () => {
   updateMarkers(props.sensors);
 });
 

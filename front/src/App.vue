@@ -1,6 +1,12 @@
 <template>
   <div id="app">
-    <MapView :sensors="sensors" :selectedIndicator="selectedIndicator" @sensor-click="openModal" />
+    <MapView
+      :sensors="sensors"
+      :selectedIndicator="selectedIndicator"
+      :selectionMode="selectionMode"
+      :dateRange="selectedDateRange"
+      @sensor-click="openModal"
+    />
     <Indicators :selectedIndex="selectedIndicator" @indicator-selected="onIndicatorSelected" />
     <Legend :selectedIndicator="selectedIndicator" />
     <Timeline
@@ -8,6 +14,7 @@
       :timePoints="timePoints"
       :dateRange="selectedDateRange"
       @time-selected="onTimeSelected"
+      @range-selected="onRangeSelected"
       @open-calendar="isCalendarOpen = true"
     />
     <Calendar
@@ -29,6 +36,9 @@
     <StatisticsModal
       :isOpen="isStatisticsModalOpen"
       :sensors="selectedSensorsForStats"
+      :timeSeriesData="timeSeriesData"
+      :dateRange="statisticsDateRange"
+      :rangeType="statisticsRangeType"
       @close="closeStatisticsModal"
     />
   </div>
@@ -44,7 +54,7 @@ import Calendar from './components/Calendar.vue';
 import SensorModal from './components/SensorModal.vue';
 import SidePanel from './components/SidePanel.vue';
 import StatisticsModal from './components/StatisticsModal.vue';
-import { fetchAirQualityData, fetchAggregatedData } from './services/api';
+import { fetchAirQualityData, fetchAggregatedData, fetchTimeSeriesData, fetchAverageData } from './services/api';
 import { formatDay, formatDayShort, formatMonth, formatYear } from './utils/dateFormat';
 
 export default {
@@ -72,9 +82,13 @@ export default {
     const selectedDateRange = ref(null);
     const timePoints = ref([]);
     const mode = ref('live');
+    const selectionMode = ref('instant'); // 'instant' | 'range'
     const rangeStart = ref(null);
     const rangeEnd = ref(null);
     const timelineScale = ref('hour');
+    const timeSeriesData = ref([]);
+    const statisticsDateRange = ref(null);
+    const statisticsRangeType = ref('instant');
     let autoRefreshInterval = null;
 
     const generateTimePoints = () => {
@@ -259,6 +273,7 @@ export default {
     const onTimeSelected = (timePoint) => {
       console.log('Time selected:', timePoint);
       selectedTimePoint.value = timePoint;
+      selectionMode.value = 'instant';
 
       if (!timePoint) return;
 
@@ -347,9 +362,79 @@ export default {
       }
     };
 
-    const openStatisticsModal = (selectedSensors) => {
+    const openStatisticsModal = async (selectedSensors, districtKey) => {
       selectedSensorsForStats.value = selectedSensors;
+
+      // If in range mode and district is selected, load time series for district
+      if (selectionMode.value === 'range' && selectedDateRange.value && districtKey) {
+        const siteIds = selectedSensors.map(s => s.id);
+
+        let interval = timelineScale.value || 'hour';
+
+        try {
+          // Fetch time series data for selected district sensors
+          const data = await fetchTimeSeriesData(
+            selectedDateRange.value.start,
+            selectedDateRange.value.end,
+            interval,
+            siteIds,
+            null
+          );
+
+          console.log('Loaded time series data for district:', data);
+
+          timeSeriesData.value = data;
+          statisticsDateRange.value = {
+            start: selectedDateRange.value.start,
+            end: selectedDateRange.value.end
+          };
+          statisticsRangeType.value = interval;
+        } catch (error) {
+          console.error('Failed to load district time series:', error);
+        }
+      }
+
       isStatisticsModalOpen.value = true;
+    };
+
+    const onRangeSelected = async (rangeData) => {
+      console.log('Range selected in Timeline:', rangeData);
+
+      const { start, end, points } = rangeData;
+
+      // Switch to range mode
+      selectionMode.value = 'range';
+
+      // Determine interval based on point type
+      let interval = 'hour';
+      if (start.type === 'day') interval = 'day';
+      else if (start.type === 'month') interval = 'month';
+      else if (start.type === 'year') interval = 'year';
+
+      // Store interval for later use
+      timelineScale.value = interval;
+
+      // Extract site IDs from current sensors
+      const siteIds = sensors.value.map(s => s.id);
+
+      try {
+        // Load average data for map display (all sensors)
+        const averageData = await fetchAverageData(
+          start.startDate,
+          end.endDate,
+          interval,
+          siteIds.length > 0 ? siteIds : null,
+          null
+        );
+
+        console.log('Loaded average data for map:', averageData);
+        sensors.value = averageData;
+
+        // Don't automatically open modal - wait for user to select district/sensors
+        console.log('Range selected. Select district or sensors to view statistics.');
+      } catch (error) {
+        console.error('Failed to load time series data:', error);
+      }
     };
 
     const closeStatisticsModal = () => {
@@ -380,9 +465,14 @@ export default {
       selectedIndicator,
       selectedTimePoint,
       timePoints,
+      timeSeriesData,
+      statisticsDateRange,
+      statisticsRangeType,
+      selectionMode,
       openModal,
       closeModal,
       onTimeSelected,
+      onRangeSelected,
       onIndicatorSelected,
       onDateSelected,
       onDateRangeSelected,

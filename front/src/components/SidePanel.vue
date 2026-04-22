@@ -97,7 +97,11 @@ const toggleAll = () => {
 };
 
 const updateDistrictMapping = async () => {
+  // Only update if we don't have districts yet or sensors list is empty
   if (props.sensors.length === 0) return;
+
+  // Don't recalculate if we already have districts mapped
+  if (sensorsByDistrict.value.size > 0) return;
 
   try {
     sensorsByDistrict.value = await groupSensorsByDistrict(props.sensors);
@@ -132,13 +136,15 @@ const applyPreset = () => {
 
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
-  emit('show-statistics', selected);
+  emit('show-statistics', selected, selectedPreset.value);
 };
 
-// Watch for sensor changes and update district mapping
-watch(() => props.sensors, () => {
-  updateDistrictMapping();
-}, { deep: true });
+// Watch for sensor changes only on initial load
+watch(() => props.sensors, (newSensors) => {
+  if (newSensors.length > 0 && sensorsByDistrict.value.size === 0) {
+    updateDistrictMapping();
+  }
+}, { immediate: true });
 
 onMounted(async () => {
   try {

@@ -25,10 +25,12 @@
         </button>
       </div>
 
-      <div class="calendar-header">
-        <button @click="previousMonth" class="nav-btn">←</button>
-        <span class="month-year">{{ monthYear }}</span>
-        <button @click="nextMonth" class="nav-btn">→</button>
+      <div class="calendar-header" v-if="selectionMode !== 'year'">
+        <button @click="previousMonth" class="nav-btn" v-if="selectionMode === 'day'">←</button>
+        <button @click="previousYear" class="nav-btn" v-if="selectionMode === 'month'">←</button>
+        <span class="month-year">{{ headerText }}</span>
+        <button @click="nextMonth" class="nav-btn" v-if="selectionMode === 'day'">→</button>
+        <button @click="nextYear" class="nav-btn" v-if="selectionMode === 'month'">→</button>
       </div>
 
       <!-- Day mode -->
@@ -61,7 +63,9 @@
           class="month-item"
           :class="{
             'selected': isMonthSelected(month),
-            'in-range': isMonthInRange(month)
+            'in-range': isMonthInRange(month),
+            'range-start': isMonthRangeStart(month),
+            'range-end': isMonthRangeEnd(month)
           }"
           @click="selectMonth(month)"
         >
@@ -77,7 +81,9 @@
           class="year-item"
           :class="{
             'selected': isYearSelected(year),
-            'in-range': isYearInRange(year)
+            'in-range': isYearInRange(year),
+            'range-start': isYearRangeStart(year),
+            'range-end': isYearRangeEnd(year)
           }"
           @click="selectYear(year)"
         >
@@ -126,6 +132,19 @@ const monthYear = computed(() => {
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
   return `${months[currentMonth.value]} ${currentYear.value}`;
+});
+
+const headerText = computed(() => {
+  if (selectionMode.value === 'day') {
+    const months = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    return `${months[currentMonth.value]} ${currentYear.value}`;
+  } else if (selectionMode.value === 'month') {
+    return `${currentYear.value}`;
+  }
+  return '';
 });
 
 const monthsGrid = computed(() => {
@@ -211,6 +230,14 @@ const nextMonth = () => {
   }
 };
 
+const previousYear = () => {
+  currentYear.value--;
+};
+
+const nextYear = () => {
+  currentYear.value++;
+};
+
 const selectDate = (day) => {
   if (day.otherMonth) return;
 
@@ -236,14 +263,19 @@ const selectMonth = (monthData) => {
   const endOfMonth = new Date(monthData.year, monthData.month + 1, 0);
 
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
+    // First click - set start only
     pendingStart.value = startOfMonth;
-    pendingEnd.value = endOfMonth;
+    pendingEnd.value = endOfMonth; // Set end to same month for single month selection
     isSelectingRange.value = true;
   } else if (pendingStart.value && !pendingEnd.value) {
+    // Second click - set end
     if (startOfMonth < pendingStart.value) {
-      pendingEnd.value = new Date(pendingStart.value.getFullYear(), pendingStart.value.getMonth() + 1, 0);
+      // Clicked earlier month - swap
+      const tempEnd = new Date(pendingStart.value.getFullYear(), pendingStart.value.getMonth() + 1, 0);
       pendingStart.value = startOfMonth;
+      pendingEnd.value = tempEnd;
     } else {
+      // Clicked later month - set as end
       pendingEnd.value = endOfMonth;
     }
     isSelectingRange.value = false;
@@ -255,14 +287,19 @@ const selectYear = (year) => {
   const endOfYear = new Date(year, 11, 31);
 
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
+    // First click - set start only
     pendingStart.value = startOfYear;
-    pendingEnd.value = endOfYear;
+    pendingEnd.value = endOfYear; // Set end to same year for single year selection
     isSelectingRange.value = true;
   } else if (pendingStart.value && !pendingEnd.value) {
+    // Second click - set end
     if (startOfYear < pendingStart.value) {
-      pendingEnd.value = new Date(pendingStart.value.getFullYear(), 11, 31);
+      // Clicked earlier year - swap
+      const tempEnd = new Date(pendingStart.value.getFullYear(), 11, 31);
       pendingStart.value = startOfYear;
+      pendingEnd.value = tempEnd;
     } else {
+      // Clicked later year - set as end
       pendingEnd.value = endOfYear;
     }
     isSelectingRange.value = false;
@@ -372,6 +409,34 @@ const isYearSelected = (year) => {
 const isYearInRange = (year) => {
   if (!pendingStart.value || !pendingEnd.value) return false;
   return year > pendingStart.value.getFullYear() && year < pendingEnd.value.getFullYear();
+};
+
+const isMonthRangeStart = (month) => {
+  if (!pendingStart.value) return false;
+  const monthStart = new Date(month.year, month.month, 1);
+  return (
+    monthStart.getMonth() === pendingStart.value.getMonth() &&
+    monthStart.getFullYear() === pendingStart.value.getFullYear()
+  );
+};
+
+const isMonthRangeEnd = (month) => {
+  if (!pendingEnd.value) return false;
+  const monthEnd = new Date(month.year, month.month + 1, 0);
+  return (
+    monthEnd.getMonth() === pendingEnd.value.getMonth() &&
+    monthEnd.getFullYear() === pendingEnd.value.getFullYear()
+  );
+};
+
+const isYearRangeStart = (year) => {
+  if (!pendingStart.value) return false;
+  return year === pendingStart.value.getFullYear();
+};
+
+const isYearRangeEnd = (year) => {
+  if (!pendingEnd.value) return false;
+  return year === pendingEnd.value.getFullYear();
 };
 </script>
 
@@ -537,6 +602,13 @@ const isYearInRange = (year) => {
   color: white;
 }
 
+.month-item.range-start,
+.month-item.range-end {
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
 .month-item.in-range {
   background: #dbeafe;
   color: #1e40af;
@@ -567,6 +639,13 @@ const isYearInRange = (year) => {
 .year-item.selected {
   background: #3b82f6;
   color: white;
+}
+
+.year-item.range-start,
+.year-item.range-end {
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
 }
 
 .year-item.in-range {
