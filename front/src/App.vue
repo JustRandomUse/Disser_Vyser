@@ -45,6 +45,7 @@ import SensorModal from './components/SensorModal.vue';
 import SidePanel from './components/SidePanel.vue';
 import StatisticsModal from './components/StatisticsModal.vue';
 import { fetchAirQualityData, fetchAggregatedData } from './services/api';
+import { formatDay, formatDayShort, formatMonth, formatYear } from './utils/dateFormat';
 
 export default {
   name: 'App',
@@ -78,11 +79,19 @@ export default {
 
     const generateTimePoints = () => {
       const points = [];
+      const baseDate = selectedDate.value || new Date();
+
       for (let i = 0; i < 24; i++) {
+        const startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), i, 0, 0);
+        const endDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), i, 59, 59);
+
         points.push({
+          type: 'hour',
           time: `${i.toString().padStart(2, '0')}:00`,
           color: '#5DADE2',
-          hour: i
+          hour: i,
+          startDate,
+          endDate
         });
       }
       timePoints.value = points;
@@ -93,47 +102,74 @@ export default {
       const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
 
       if (daysDiff === 0) {
+        // Single day - show hours
         timelineScale.value = 'hour';
         for (let i = 0; i < 24; i++) {
+          const pointStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), i, 0, 0);
+          const pointEnd = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), i, 59, 59);
+
           points.push({
+            type: 'hour',
             time: `${i.toString().padStart(2, '0')}:00`,
             color: '#5DADE2',
-            hour: i
+            hour: i,
+            startDate: pointStart,
+            endDate: pointEnd
           });
         }
       } else if (daysDiff <= 31) {
+        // Days range
         timelineScale.value = 'day';
         const current = new Date(startDate);
         while (current <= endDate) {
+          const pointStart = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0, 0);
+          const pointEnd = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59);
+
           points.push({
-            time: `${current.getDate()}/${current.getMonth() + 1}`,
+            type: 'day',
+            time: formatDayShort(current),
             color: '#5DADE2',
-            date: new Date(current)
+            startDate: new Date(pointStart),
+            endDate: new Date(pointEnd)
           });
           current.setDate(current.getDate() + 1);
         }
       } else if (daysDiff <= 365) {
+        // Months range
         timelineScale.value = 'month';
-        const current = new Date(startDate);
-        const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-        while (current <= endDate) {
+        const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+        while (current <= end) {
+          const pointStart = new Date(current.getFullYear(), current.getMonth(), 1, 0, 0, 0);
+          const pointEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0, 23, 59, 59);
+
           points.push({
-            time: `${months[current.getMonth()]} ${current.getFullYear()}`,
+            type: 'month',
+            time: formatMonth(current),
             color: '#5DADE2',
-            date: new Date(current)
+            startDate: new Date(pointStart),
+            endDate: new Date(pointEnd)
           });
           current.setMonth(current.getMonth() + 1);
         }
       } else {
+        // Years range
         timelineScale.value = 'year';
-        const current = new Date(startDate);
-        while (current <= endDate) {
+        const currentYear = startDate.getFullYear();
+        const endYear = endDate.getFullYear();
+
+        for (let year = currentYear; year <= endYear; year++) {
+          const pointStart = new Date(year, 0, 1, 0, 0, 0);
+          const pointEnd = new Date(year, 11, 31, 23, 59, 59);
+
           points.push({
-            time: `${current.getFullYear()}`,
+            type: 'year',
+            time: formatYear(pointStart),
             color: '#5DADE2',
-            date: new Date(current)
+            startDate: pointStart,
+            endDate: pointEnd
           });
-          current.setFullYear(current.getFullYear() + 1);
         }
       }
 
@@ -223,7 +259,16 @@ export default {
     const onTimeSelected = (timePoint) => {
       console.log('Time selected:', timePoint);
       selectedTimePoint.value = timePoint;
-      loadData(selectedDate.value, timePoint.hour);
+
+      if (!timePoint) return;
+
+      if (timePoint.type === 'hour') {
+        // Load data for specific hour
+        loadData(selectedDate.value, timePoint.hour);
+      } else if (timePoint.type === 'day' || timePoint.type === 'month' || timePoint.type === 'year') {
+        // Load aggregated data for the period
+        loadAggregatedData(timePoint.startDate, timePoint.endDate);
+      }
     };
 
     const onIndicatorSelected = (index) => {

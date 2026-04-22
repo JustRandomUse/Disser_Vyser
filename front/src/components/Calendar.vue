@@ -1,13 +1,38 @@
 <template>
   <div v-if="isOpen" class="calendar-backdrop" @click="close">
     <div class="calendar-content" @click.stop>
+      <div class="mode-selector">
+        <button
+          @click="selectionMode = 'day'"
+          :class="{ active: selectionMode === 'day' }"
+          class="mode-btn"
+        >
+          Дни
+        </button>
+        <button
+          @click="selectionMode = 'month'"
+          :class="{ active: selectionMode === 'month' }"
+          class="mode-btn"
+        >
+          Месяцы
+        </button>
+        <button
+          @click="selectionMode = 'year'"
+          :class="{ active: selectionMode === 'year' }"
+          class="mode-btn"
+        >
+          Годы
+        </button>
+      </div>
+
       <div class="calendar-header">
         <button @click="previousMonth" class="nav-btn">←</button>
         <span class="month-year">{{ monthYear }}</span>
         <button @click="nextMonth" class="nav-btn">→</button>
       </div>
 
-      <div class="calendar-grid">
+      <!-- Day mode -->
+      <div v-if="selectionMode === 'day'" class="calendar-grid">
         <div v-for="day in weekDays" :key="day" class="week-day">{{ day }}</div>
 
         <div
@@ -25,6 +50,38 @@
           @click="selectDate(day)"
         >
           {{ day.date }}
+        </div>
+      </div>
+
+      <!-- Month mode -->
+      <div v-if="selectionMode === 'month'" class="months-grid">
+        <div
+          v-for="(month, index) in monthsGrid"
+          :key="index"
+          class="month-item"
+          :class="{
+            'selected': isMonthSelected(month),
+            'in-range': isMonthInRange(month)
+          }"
+          @click="selectMonth(month)"
+        >
+          {{ month.name }}
+        </div>
+      </div>
+
+      <!-- Year mode -->
+      <div v-if="selectionMode === 'year'" class="years-grid">
+        <div
+          v-for="year in yearsGrid"
+          :key="year"
+          class="year-item"
+          :class="{
+            'selected': isYearSelected(year),
+            'in-range': isYearInRange(year)
+          }"
+          @click="selectYear(year)"
+        >
+          {{ year }}
         </div>
       </div>
 
@@ -53,6 +110,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'date-selected', 'date-range-selected']);
 
+const selectionMode = ref('day'); // 'day' | 'month' | 'year'
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
 const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -68,6 +126,27 @@ const monthYear = computed(() => {
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
   return `${months[currentMonth.value]} ${currentYear.value}`;
+});
+
+const monthsGrid = computed(() => {
+  const months = [
+    'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+    'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'
+  ];
+  return months.map((name, index) => ({
+    name,
+    month: index,
+    year: currentYear.value
+  }));
+});
+
+const yearsGrid = computed(() => {
+  const startYear = Math.floor(currentYear.value / 12) * 12;
+  const years = [];
+  for (let i = 0; i < 12; i++) {
+    years.push(startYear + i);
+  }
+  return years;
 });
 
 const calendarDays = computed(() => {
@@ -152,12 +231,52 @@ const selectDate = (day) => {
   }
 };
 
+const selectMonth = (monthData) => {
+  const startOfMonth = new Date(monthData.year, monthData.month, 1);
+  const endOfMonth = new Date(monthData.year, monthData.month + 1, 0);
+
+  if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
+    pendingStart.value = startOfMonth;
+    pendingEnd.value = endOfMonth;
+    isSelectingRange.value = true;
+  } else if (pendingStart.value && !pendingEnd.value) {
+    if (startOfMonth < pendingStart.value) {
+      pendingEnd.value = new Date(pendingStart.value.getFullYear(), pendingStart.value.getMonth() + 1, 0);
+      pendingStart.value = startOfMonth;
+    } else {
+      pendingEnd.value = endOfMonth;
+    }
+    isSelectingRange.value = false;
+  }
+};
+
+const selectYear = (year) => {
+  const startOfYear = new Date(year, 0, 1);
+  const endOfYear = new Date(year, 11, 31);
+
+  if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
+    pendingStart.value = startOfYear;
+    pendingEnd.value = endOfYear;
+    isSelectingRange.value = true;
+  } else if (pendingStart.value && !pendingEnd.value) {
+    if (startOfYear < pendingStart.value) {
+      pendingEnd.value = new Date(pendingStart.value.getFullYear(), 11, 31);
+      pendingStart.value = startOfYear;
+    } else {
+      pendingEnd.value = endOfYear;
+    }
+    isSelectingRange.value = false;
+  }
+};
+
 const selectToday = () => {
   const today = new Date();
   currentMonth.value = today.getMonth();
   currentYear.value = today.getFullYear();
-  pendingStart.value = today;
-  pendingEnd.value = today;
+
+  // Immediately emit and close - no need for "Apply" button
+  emit('date-selected', today);
+  close();
 };
 
 const applySelection = () => {
@@ -224,6 +343,36 @@ const isInRange = (day) => {
   const dayDate = new Date(day.year, day.month, day.date);
   return dayDate > pendingStart.value && dayDate < pendingEnd.value;
 };
+
+const isMonthSelected = (month) => {
+  if (!pendingStart.value) return false;
+  const monthStart = new Date(month.year, month.month, 1);
+  const monthEnd = new Date(month.year, month.month + 1, 0);
+
+  return (
+    (pendingStart.value >= monthStart && pendingStart.value <= monthEnd) ||
+    (pendingEnd.value && pendingEnd.value >= monthStart && pendingEnd.value <= monthEnd)
+  );
+};
+
+const isMonthInRange = (month) => {
+  if (!pendingStart.value || !pendingEnd.value) return false;
+  const monthStart = new Date(month.year, month.month, 1);
+  return monthStart > pendingStart.value && monthStart < pendingEnd.value;
+};
+
+const isYearSelected = (year) => {
+  if (!pendingStart.value) return false;
+  return (
+    pendingStart.value.getFullYear() === year ||
+    (pendingEnd.value && pendingEnd.value.getFullYear() === year)
+  );
+};
+
+const isYearInRange = (year) => {
+  if (!pendingStart.value || !pendingEnd.value) return false;
+  return year > pendingStart.value.getFullYear() && year < pendingEnd.value.getFullYear();
+};
 </script>
 
 <style scoped>
@@ -246,6 +395,38 @@ const isInRange = (day) => {
   padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   min-width: 320px;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 15px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-btn:hover:not(.active) {
+  color: #333;
 }
 
 .calendar-header {
@@ -325,6 +506,70 @@ const isInRange = (day) => {
 }
 
 .calendar-day.in-range {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.months-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.month-item {
+  text-align: center;
+  padding: 15px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+  border: 2px solid transparent;
+}
+
+.month-item:hover {
+  background: #e5e7eb;
+}
+
+.month-item.selected {
+  background: #3b82f6;
+  color: white;
+}
+
+.month-item.in-range {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.years-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.year-item {
+  text-align: center;
+  padding: 15px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+  border: 2px solid transparent;
+}
+
+.year-item:hover {
+  background: #e5e7eb;
+}
+
+.year-item.selected {
+  background: #3b82f6;
+  color: white;
+}
+
+.year-item.in-range {
   background: #dbeafe;
   color: #1e40af;
 }
