@@ -406,14 +406,16 @@ export default {
         };
       });
 
-      // If in range mode and district is selected, load time series for district
-      if (selectionMode.value === 'range' && selectedDateRange.value && districtKey) {
+      // If in range mode, load time series data
+      if (selectionMode.value === 'range' && selectedDateRange.value) {
         const siteIds = selectedSensors.map(s => s.id);
 
+        // API supports only 'hour', 'day', 'month' - convert 'year' to 'month'
         let interval = timelineScale.value || 'hour';
+        if (interval === 'year') interval = 'month';
 
         try {
-          // Fetch time series data for selected district sensors
+          // Fetch time series data for selected sensors
           const data = await fetchTimeSeriesData(
             selectedDateRange.value.start,
             selectedDateRange.value.end,
@@ -422,17 +424,22 @@ export default {
             null
           );
 
-          console.log('Loaded time series data for district:', data);
+          console.log('Loaded time series data for selected sensors:', data);
 
           timeSeriesData.value = data;
           statisticsDateRange.value = {
             start: selectedDateRange.value.start,
             end: selectedDateRange.value.end
           };
-          statisticsRangeType.value = interval;
+          statisticsRangeType.value = timelineScale.value; // Use original type for UI
         } catch (error) {
-          console.error('Failed to load district time series:', error);
+          console.error('Failed to load time series data:', error);
         }
+      } else {
+        // Clear time series data for instant mode
+        timeSeriesData.value = [];
+        statisticsDateRange.value = null;
+        statisticsRangeType.value = 'instant';
       }
 
       isStatisticsModalOpen.value = true;
@@ -446,14 +453,26 @@ export default {
       // Switch to range mode
       selectionMode.value = 'range';
 
+      // Store selected date range for statistics modal
+      selectedDateRange.value = {
+        start: start.startDate,
+        end: end.endDate
+      };
+
+      // Store range boundaries
+      rangeStart.value = start.startDate;
+      rangeEnd.value = end.endDate;
+      selectedDate.value = start.startDate;
+
       // Determine interval based on point type
+      // Note: API supports only 'hour', 'day', 'month' - not 'year'
       let interval = 'hour';
       if (start.type === 'day') interval = 'day';
       else if (start.type === 'month') interval = 'month';
-      else if (start.type === 'year') interval = 'year';
+      else if (start.type === 'year') interval = 'month'; // Use 'month' for year ranges
 
       // Store interval for later use
-      timelineScale.value = interval;
+      timelineScale.value = start.type; // Keep original type for UI
 
       // Extract site IDs from base sensors (static list)
       const siteIds = baseSensors.value.length > 0 ? baseSensors.value.map(s => s.id) : null;

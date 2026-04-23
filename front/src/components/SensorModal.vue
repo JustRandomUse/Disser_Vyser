@@ -5,26 +5,11 @@
 
       <h2>{{ sensorData.name }}</h2>
 
-      <div class="chart-mode-selector">
-        <button
-          :class="{ active: chartMode === 'current' }"
-          @click="chartMode = 'current'"
-        >
-          Средние значения
-        </button>
-        <button
-          :class="{ active: chartMode === 'comparison' }"
-          @click="chartMode = 'comparison'"
-        >
-          Сравнение
-        </button>
-      </div>
-
       <div class="param-selector">
         <button
           v-for="(key, index) in Object.keys(measurements)"
           :key="index"
-          :class="{ active: isParamActive(key) }"
+          :class="{ active: selectedParams.includes(key) }"
           @click="toggleParam(key)"
         >
           {{ formatKey(key) }}
@@ -33,12 +18,12 @@
 
       <div class="chart-container">
         <div ref="mainChart" class="chart"></div>
-        <p v-if="chartMode === 'comparison' && comparisonParams.length === 0" class="no-selection">
-          Выберите параметры для сравнения
+        <p v-if="selectedParams.length === 0" class="no-selection">
+          Выберите параметры для отображения
         </p>
       </div>
 
-      <div v-if="chartMode === 'current'" class="stats-section">
+      <div class="stats-section">
         <h4>Средние значения</h4>
         <table class="stats-table">
           <thead>
@@ -84,9 +69,7 @@ const emit = defineEmits(['close']);
 
 const mainChart = ref(null);
 const mainChartInstance = ref(null);
-const chartMode = ref('current'); // 'current' | 'comparison'
-const selectedCurrentParam = ref('pm25');
-const comparisonParams = ref([]);
+const selectedParams = ref(['pm25']); // Array of selected parameters
 
 const measurements = computed(() => {
   const data = props.sensorData;
@@ -145,25 +128,12 @@ const getUnit = (key) => {
   return units[key] || '';
 };
 
-const isParamActive = (key) => {
-  if (chartMode.value === 'current') {
-    return selectedCurrentParam.value === key;
-  } else if (chartMode.value === 'comparison') {
-    return comparisonParams.value.includes(key);
-  }
-  return false;
-};
-
 const toggleParam = (key) => {
-  if (chartMode.value === 'current') {
-    selectedCurrentParam.value = key;
-  } else if (chartMode.value === 'comparison') {
-    const index = comparisonParams.value.indexOf(key);
-    if (index > -1) {
-      comparisonParams.value.splice(index, 1);
-    } else {
-      comparisonParams.value.push(key);
-    }
+  const index = selectedParams.value.indexOf(key);
+  if (index > -1) {
+    selectedParams.value.splice(index, 1);
+  } else {
+    selectedParams.value.push(key);
   }
 };
 
@@ -204,14 +174,24 @@ const generateTimeSeriesData = () => {
 };
 
 const renderChart = () => {
-  if (chartMode.value === 'current') {
-    renderCurrentValuesChart();
-  } else if (chartMode.value === 'comparison') {
+  if (selectedParams.value.length === 0) {
+    if (mainChartInstance.value) {
+      mainChartInstance.value.dispose();
+      mainChartInstance.value = null;
+    }
+    return;
+  }
+
+  if (selectedParams.value.length === 1) {
+    // Single parameter - show with markPoint and markLine
+    renderSingleParamChart();
+  } else {
+    // Multiple parameters - show comparison
     renderComparisonChart();
   }
 };
 
-const renderCurrentValuesChart = () => {
+const renderSingleParamChart = () => {
   if (mainChartInstance.value) {
     mainChartInstance.value.dispose();
   }
@@ -219,7 +199,7 @@ const renderCurrentValuesChart = () => {
   mainChartInstance.value = echarts.init(mainChart.value);
 
   const data = generateTimeSeriesData();
-  const param = selectedCurrentParam.value;
+  const param = selectedParams.value[0]; // First selected parameter
 
   const colors = {
     pm25: '#ff6384',
@@ -296,17 +276,30 @@ const renderCurrentValuesChart = () => {
               type: 'max',
               name: 'Максимум',
               label: {
-                formatter: 'Макс: {c}'
+                formatter: 'Макс: {c}',
+                position: 'top'
+              },
+              itemStyle: {
+                color: '#e74c3c'
               }
             },
             {
               type: 'min',
               name: 'Минимум',
               label: {
-                formatter: 'Мин: {c}'
+                formatter: 'Мин: {c}',
+                position: 'bottom'
+              },
+              itemStyle: {
+                color: '#3498db'
               }
             }
-          ]
+          ],
+          symbolSize: 60,
+          label: {
+            fontSize: 12,
+            fontWeight: 'bold'
+          }
         }
       }
     ],
@@ -343,10 +336,6 @@ const renderComparisonChart = () => {
     mainChartInstance.value.dispose();
   }
 
-  if (comparisonParams.value.length === 0) {
-    return;
-  }
-
   mainChartInstance.value = echarts.init(mainChart.value);
   const data = generateTimeSeriesData();
 
@@ -366,7 +355,7 @@ const renderComparisonChart = () => {
     pressure: 'гПа'
   };
 
-  const yAxisConfig = comparisonParams.value.map((param, index) => ({
+  const yAxisConfig = selectedParams.value.map((param, index) => ({
     type: 'value',
     name: formatKey(param) + ' (' + units[param] + ')',
     position: index % 2 === 0 ? 'left' : 'right',
@@ -381,7 +370,7 @@ const renderComparisonChart = () => {
     }
   }));
 
-  const series = comparisonParams.value.map((param, index) => ({
+  const series = selectedParams.value.map((param, index) => ({
     name: formatKey(param),
     type: 'line',
     smooth: true,
@@ -399,8 +388,8 @@ const renderComparisonChart = () => {
   }));
 
   // Calculate dynamic grid margins based on number of axes
-  const leftAxesCount = Math.ceil(comparisonParams.value.length / 2);
-  const rightAxesCount = Math.floor(comparisonParams.value.length / 2);
+  const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
+  const rightAxesCount = Math.floor(selectedParams.value.length / 2);
   const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
   const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
 
@@ -417,7 +406,7 @@ const renderComparisonChart = () => {
       }
     },
     legend: {
-      data: comparisonParams.value.map(p => formatKey(p)),
+      data: selectedParams.value.map(p => formatKey(p)),
       top: 40,
       selectedMode: false
     },
@@ -484,26 +473,10 @@ watch(() => props.isOpen, (newVal) => {
   }
 });
 
-watch(chartMode, () => {
+watch(selectedParams, () => {
   if (props.isOpen) {
     nextTick(() => {
       renderChart();
-    });
-  }
-});
-
-watch(selectedCurrentParam, () => {
-  if (props.isOpen && chartMode.value === 'current') {
-    nextTick(() => {
-      renderCurrentValuesChart();
-    });
-  }
-});
-
-watch(comparisonParams, () => {
-  if (props.isOpen && chartMode.value === 'comparison') {
-    nextTick(() => {
-      renderComparisonChart();
     });
   }
 }, { deep: true });
@@ -562,38 +535,6 @@ onBeforeUnmount(() => {
 
 h2 {
   margin: 0 0 20px 0;
-  color: #333;
-}
-
-.chart-mode-selector {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  background: #f3f4f6;
-  padding: 4px;
-  border-radius: 8px;
-}
-
-.chart-mode-selector button {
-  flex: 1;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.chart-mode-selector button.active {
-  background: white;
-  color: #3b82f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.chart-mode-selector button:hover:not(.active) {
   color: #333;
 }
 

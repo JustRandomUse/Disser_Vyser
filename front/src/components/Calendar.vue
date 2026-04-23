@@ -320,7 +320,7 @@ const applySelection = () => {
   if (!pendingStart.value) return;
 
   if (pendingEnd.value) {
-    // Range selected
+    // Range selected (two clicks)
     startDate.value = pendingStart.value;
     endDate.value = pendingEnd.value;
     emit('date-range-selected', {
@@ -328,8 +328,30 @@ const applySelection = () => {
       end: endDate.value
     });
   } else {
-    // Single date selected
-    emit('date-selected', pendingStart.value);
+    // Single selection - check mode
+    if (selectionMode.value === 'year') {
+      // Single year selected - treat as full year range
+      const year = pendingStart.value.getFullYear();
+      startDate.value = new Date(year, 0, 1);
+      endDate.value = new Date(year, 11, 31);
+      emit('date-range-selected', {
+        start: startDate.value,
+        end: endDate.value
+      });
+    } else if (selectionMode.value === 'month') {
+      // Single month selected - treat as full month range
+      const year = pendingStart.value.getFullYear();
+      const month = pendingStart.value.getMonth();
+      startDate.value = new Date(year, month, 1);
+      endDate.value = new Date(year, month + 1, 0);
+      emit('date-range-selected', {
+        start: startDate.value,
+        end: endDate.value
+      });
+    } else {
+      // Single day selected
+      emit('date-selected', pendingStart.value);
+    }
   }
   close();
 };

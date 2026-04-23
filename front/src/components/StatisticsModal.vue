@@ -97,6 +97,42 @@ const toggleParam = (param) => {
 };
 
 const statistics = computed(() => {
+  // If we have time series data for a range, calculate statistics from it
+  if (props.timeSeriesData && props.timeSeriesData.length > 0 && props.rangeType !== 'instant') {
+    const params = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
+    const stats = {};
+
+    params.forEach(param => {
+      const allValues = [];
+
+      // Collect all values for this parameter across all sites and time points
+      props.timeSeriesData.forEach(site => {
+        if (site.data && Array.isArray(site.data)) {
+          site.data.forEach(point => {
+            if (point[param] && point[param] > 0) {
+              allValues.push(point[param]);
+            }
+          });
+        }
+      });
+
+      if (allValues.length > 0) {
+        const avg = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+        const min = Math.min(...allValues);
+        const max = Math.max(...allValues);
+
+        stats[param] = {
+          avg: Math.round(avg * 10) / 10,
+          min: Math.round(min * 10) / 10,
+          max: Math.round(max * 10) / 10
+        };
+      }
+    });
+
+    return stats;
+  }
+
+  // Fallback to instant mode: calculate from current sensor values
   if (props.sensors.length === 0) return {};
 
   const params = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
