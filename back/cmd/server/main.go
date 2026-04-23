@@ -23,6 +23,13 @@ func main() {
 		port = "8080"
 	}
 
+	// Get allowed origins from environment
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		// Default for local development
+		allowedOrigins = "http://localhost:5173,http://localhost:5174,http://localhost:3000"
+	}
+
 	// Initialize service
 	svc := service.NewService(apiKey)
 
@@ -34,9 +41,10 @@ func main() {
 
 	// CORS configuration
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:3000"}
+	config.AllowOrigins = parseOrigins(allowedOrigins)
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept"}
+	config.AllowCredentials = true
 	router.Use(cors.New(config))
 
 	// API routes
@@ -56,16 +64,63 @@ func main() {
 		api.GET("/datasets/:code/statistics", h.GetStatistics)
 	}
 
-	// Serve frontend static files
-	router.Static("/assets", "../front/dist/assets")
-	router.StaticFile("/", "../front/dist/index.html")
-	router.NoRoute(func(c *gin.Context) {
-		c.File("../front/dist/index.html")
-	})
-
 	// Start server
 	log.Printf("Server starting on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+// parseOrigins splits comma-separated origins string into slice
+func parseOrigins(origins string) []string {
+	var result []string
+	for _, origin := range splitAndTrim(origins, ",") {
+		if origin != "" {
+			result = append(result, origin)
+		}
+	}
+	return result
+}
+
+// splitAndTrim splits string by separator and trims whitespace
+func splitAndTrim(s, sep string) []string {
+	parts := []string{}
+	for _, part := range splitString(s, sep) {
+		trimmed := trimSpace(part)
+		parts = append(parts, trimmed)
+	}
+	return parts
+}
+
+// splitString splits string by separator
+func splitString(s, sep string) []string {
+	if s == "" {
+		return []string{}
+	}
+	result := []string{}
+	current := ""
+	for i := 0; i < len(s); i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			result = append(result, current)
+			current = ""
+			i += len(sep) - 1
+		} else {
+			current += string(s[i])
+		}
+	}
+	result = append(result, current)
+	return result
+}
+
+// trimSpace removes leading and trailing whitespace
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+		start++
+	}
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+		end--
+	}
+	return s[start:end]
 }
