@@ -6,7 +6,7 @@
       <h2>Статистика по выбранным датчикам</h2>
       <p class="sensors-count">Датчиков: {{ sensors.length }}</p>
 
-      <div v-if="timeSeriesData && timeSeriesData.length > 0" class="parameter-selector">
+      <div class="parameter-selector">
         <label>Параметр:</label>
         <select v-model="selectedParameter" @change="renderChart">
           <option value="pm25">PM2.5</option>
@@ -15,6 +15,10 @@
           <option value="humidity">Влажность</option>
           <option value="pressure">Давление</option>
         </select>
+      </div>
+
+      <div class="chart-section">
+        <div ref="statsChart" style="width: 100%; height: 400px;"></div>
       </div>
 
       <div class="stats-section">
@@ -39,10 +43,6 @@
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div class="chart-section">
-        <div ref="statsChart" style="width: 100%; height: 400px;"></div>
       </div>
     </div>
   </div>
@@ -206,7 +206,8 @@ const renderTimeSeriesChart = () => {
     legend: {
       data: props.timeSeriesData.map(s => s.name),
       top: 40,
-      type: 'scroll'
+      type: 'scroll',
+      selectedMode: false
     },
     grid: {
       left: '10%',
@@ -259,15 +260,32 @@ const renderTimeSeriesChart = () => {
 };
 
 const renderInstantChart = () => {
-  const params = Object.keys(statistics.value);
-  const candlestickData = params.map(p => {
-    const stat = statistics.value[p];
-    return [stat.min, stat.max, stat.min, stat.avg];
+  const selectedParam = selectedParameter.value;
+
+  if (!statistics.value[selectedParam]) {
+    return;
+  }
+
+  const colors = {
+    pm25: '#ff6384',
+    pm10: '#36a2eb',
+    temperature: '#ffce56',
+    humidity: '#4bc0c0',
+    pressure: '#9966ff'
+  };
+
+  const stat = statistics.value[selectedParam];
+
+  // Create data points showing current values for each sensor
+  const data = props.sensors.map((sensor, index) => {
+    return [index, sensor[selectedParam] || 0];
   });
+
+  const sensorNames = props.sensors.map(s => s.name || `Датчик ${s.id}`);
 
   const option = {
     title: {
-      text: 'Диапазон значений параметров',
+      text: formatKey(selectedParam) + ' (текущие значения)',
       left: 'center',
       top: 10
     },
@@ -275,52 +293,84 @@ const renderInstantChart = () => {
       trigger: 'axis',
       axisPointer: {
         type: 'cross'
-      },
-      formatter: function(params) {
-        const param = params[0];
-        const data = param.data;
-        return `${param.name}<br/>
-          Минимум: ${data[2]}<br/>
-          Среднее: ${data[3]}<br/>
-          Максимум: ${data[1]}`;
       }
     },
-    brush: {
-      toolbox: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear'],
-      xAxisIndex: 0
-    },
-    toolbox: {
-      feature: {
-        brush: {
-          type: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear']
-        },
-        dataZoom: {
-          yAxisIndex: false
-        },
-        restore: {},
-        saveAsImage: {}
-      }
+    legend: {
+      data: [formatKey(selectedParam)],
+      top: 40,
+      selectedMode: false
     },
     grid: {
       left: '10%',
       right: '10%',
       bottom: '15%',
-      top: '20%'
+      top: '25%'
     },
     xAxis: {
       type: 'category',
-      data: params.map(p => formatKey(p)),
-      scale: true,
-      boundaryGap: true,
-      axisLine: { onZero: false },
-      splitLine: { show: false },
-      min: 'dataMin',
-      max: 'dataMax'
+      data: sensorNames,
+      boundaryGap: false,
+      axisLabel: {
+        rotate: 45,
+        interval: 0
+      }
     },
     yAxis: {
-      scale: true,
-      splitArea: {
-        show: true
+      type: 'value',
+      name: getUnit(selectedParam),
+      axisLabel: {
+        formatter: '{value}'
+      }
+    },
+    series: [
+      {
+        name: formatKey(selectedParam),
+        type: 'line',
+        smooth: true,
+        data: data,
+        itemStyle: {
+          color: colors[selectedParam]
+        },
+        markLine: {
+          data: [
+            {
+              yAxis: stat.avg,
+              name: 'Среднее',
+              label: {
+                formatter: 'Среднее: {c}',
+                position: 'end'
+              }
+            },
+            {
+              yAxis: stat.min,
+              name: 'Минимум',
+              label: {
+                formatter: 'Мин: {c}',
+                position: 'start'
+              }
+            },
+            {
+              yAxis: stat.max,
+              name: 'Максимум',
+              label: {
+                formatter: 'Макс: {c}',
+                position: 'start'
+              }
+            }
+          ],
+          lineStyle: {
+            type: 'dashed'
+          }
+        }
+      }
+    ],
+    toolbox: {
+      feature: {
+        dataZoom: {
+          yAxisIndex: 'none'
+        },
+        restore: {},
+        saveAsImage: {}
       }
     },
     dataZoom: [
@@ -335,19 +385,6 @@ const renderInstantChart = () => {
         top: '90%',
         start: 0,
         end: 100
-      }
-    ],
-    series: [
-      {
-        name: 'Диапазон',
-        type: 'candlestick',
-        data: candlestickData,
-        itemStyle: {
-          color: '#3b82f6',
-          color0: '#10b981',
-          borderColor: '#2563eb',
-          borderColor0: '#059669'
-        }
       }
     ]
   };
