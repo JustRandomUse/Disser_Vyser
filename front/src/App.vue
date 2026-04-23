@@ -414,6 +414,12 @@ export default {
         let interval = timelineScale.value || 'hour';
         if (interval === 'year') interval = 'month';
 
+        console.log('🔍 ДИАГНОСТИКА openStatisticsModal:');
+        console.log('  selectedDateRange:', selectedDateRange.value);
+        console.log('  timelineScale (UI):', timelineScale.value);
+        console.log('  interval (API):', interval);
+        console.log('  siteIds:', siteIds);
+
         try {
           // Fetch time series data for selected sensors
           const data = await fetchTimeSeriesData(
@@ -424,6 +430,9 @@ export default {
             null
           );
 
+          console.log('  ✅ API response length:', data.length);
+          console.log('  ✅ First site data points:', data[0]?.data?.length);
+          console.log('  ✅ First 3 points:', data[0]?.data?.slice(0, 3));
           console.log('Loaded time series data for selected sensors:', data);
 
           timeSeriesData.value = data;
@@ -433,7 +442,7 @@ export default {
           };
           statisticsRangeType.value = timelineScale.value; // Use original type for UI
         } catch (error) {
-          console.error('Failed to load time series data:', error);
+          console.error('❌ Failed to load time series data:', error);
         }
       } else {
         // Clear time series data for instant mode

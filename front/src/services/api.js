@@ -233,7 +233,11 @@ export const fetchTimeSeriesData = async (startDate, endDate, interval = 'hour',
       endpoint += `&indicators=${indicators.join(',')}`;
     }
 
+    console.log('🌐 API fetchTimeSeriesData request:', endpoint);
+
     const response = await axios.get(endpoint);
+
+    console.log('🌐 API response.data.data length:', response.data?.data?.length);
 
     if (response.data && response.data.status === 'success') {
       // Group by site

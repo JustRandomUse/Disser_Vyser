@@ -86,6 +86,7 @@ const statsChart = ref(null);
 const chartInstance = ref(null);
 const selectedParams = ref(['pm25']);
 const availableParams = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
+let resizeTimer = null;
 
 const toggleParam = (param) => {
   const index = selectedParams.value.indexOf(param);
@@ -227,6 +228,12 @@ const getUnit = (key) => {
 };
 
 const renderChart = () => {
+  // Clear any pending resize timers
+  if (resizeTimer) {
+    clearTimeout(resizeTimer);
+    resizeTimer = null;
+  }
+
   if (selectedParams.value.length === 0) {
     if (chartInstance.value) {
       chartInstance.value.dispose();
@@ -235,11 +242,29 @@ const renderChart = () => {
     return;
   }
 
-  if (chartInstance.value) {
-    chartInstance.value.dispose();
+  // Check if ref is ready
+  if (!statsChart.value) {
+    console.warn('statsChart ref not ready');
+    return;
   }
 
-  chartInstance.value = echarts.init(statsChart.value);
+  // Dispose old instance if exists
+  if (chartInstance.value) {
+    try {
+      chartInstance.value.dispose();
+    } catch (e) {
+      console.warn('Failed to dispose chart:', e);
+    }
+    chartInstance.value = null;
+  }
+
+  // Initialize new instance
+  try {
+    chartInstance.value = echarts.init(statsChart.value);
+  } catch (e) {
+    console.error('Failed to init chart:', e);
+    return;
+  }
 
   // Check if we have time series data
   if (props.timeSeriesData && props.timeSeriesData.length > 0 && props.rangeType !== 'instant') {
@@ -250,6 +275,12 @@ const renderChart = () => {
 };
 
 const renderTimeSeriesChart = () => {
+  console.log('📊 ДИАГНОСТИКА renderTimeSeriesChart:');
+  console.log('  props.timeSeriesData.length:', props.timeSeriesData.length);
+  console.log('  props.rangeType:', props.rangeType);
+  console.log('  selectedParams:', selectedParams.value);
+  console.log('  timeSeriesData[0]?.data?.length:', props.timeSeriesData[0]?.data?.length);
+
   const colors = {
     pm25: '#ff6384',
     pm10: '#36a2eb',
@@ -286,6 +317,8 @@ const renderTimeSeriesChart = () => {
     });
   });
 
+  console.log('  series.length:', series.length);
+
   const times = props.timeSeriesData[0]?.data.map(d => {
     const date = new Date(d.time);
     if (props.rangeType === 'hour') {
@@ -299,6 +332,9 @@ const renderTimeSeriesChart = () => {
     }
     return d.time;
   }) || [];
+
+  console.log('  times.length:', times.length);
+  console.log('  First 3 times:', times.slice(0, 3));
 
   // Create yAxis config for each selected parameter
   const yAxisConfig = selectedParams.value.map((param, index) => ({
@@ -554,16 +590,26 @@ watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     nextTick(() => {
       // Small delay to ensure modal container has final size
-      setTimeout(() => {
+      resizeTimer = setTimeout(() => {
         renderChart();
         // Resize chart after render to ensure correct dimensions
         nextTick(() => {
-          if (chartInstance.value) {
-            chartInstance.value.resize();
+          if (chartInstance.value && !chartInstance.value.isDisposed()) {
+            try {
+              chartInstance.value.resize();
+            } catch (e) {
+              console.warn('Failed to resize chart:', e);
+            }
           }
         });
       }, 50);
     });
+  } else {
+    // Clear timer when modal closes
+    if (resizeTimer) {
+      clearTimeout(resizeTimer);
+      resizeTimer = null;
+    }
   }
 });
 
@@ -576,8 +622,20 @@ watch(selectedParams, () => {
 }, { deep: true });
 
 onBeforeUnmount(() => {
+  // Clear any pending timers
+  if (resizeTimer) {
+    clearTimeout(resizeTimer);
+    resizeTimer = null;
+  }
+
+  // Dispose chart instance
   if (chartInstance.value) {
-    chartInstance.value.dispose();
+    try {
+      chartInstance.value.dispose();
+    } catch (e) {
+      console.warn('Failed to dispose chart on unmount:', e);
+    }
+    chartInstance.value = null;
   }
 });
 </script>
