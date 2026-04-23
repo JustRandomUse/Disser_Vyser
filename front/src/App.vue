@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <MapView
-      :sensors="sensors"
+      :sensors="mapSensors"
       :selectedIndicator="selectedIndicator"
       :selectionMode="selectionMode"
       :dateRange="selectedDateRange"
@@ -30,7 +30,7 @@
       @close="closeModal"
     />
     <SidePanel
-      :sensors="sensors"
+      :sensors="baseSensors"
       @show-statistics="openStatisticsModal"
     />
     <StatisticsModal
@@ -70,7 +70,8 @@ export default {
     StatisticsModal
   },
   setup() {
-    const sensors = ref([]);
+    const baseSensors = ref([]); // Static list of unique sensors for sidebar
+    const mapSensors = ref([]); // Dynamic data for map display
     const isModalOpen = ref(false);
     const isCalendarOpen = ref(false);
     const isStatisticsModalOpen = ref(false);
@@ -194,10 +195,21 @@ export default {
       try {
         const data = await fetchAirQualityData(date, hour);
         console.log('Loaded sensor data:', data);
-        sensors.value = data;
+
+        // Update both base sensors (if not yet loaded) and map sensors
+        if (baseSensors.value.length === 0) {
+          baseSensors.value = data.map(s => ({
+            id: s.id,
+            name: s.name,
+            latitude: s.latitude,
+            longitude: s.longitude
+          }));
+        }
+
+        mapSensors.value = data;
       } catch (error) {
         console.error('Failed to load air quality data:', error);
-        sensors.value = [
+        const fallbackData = [
           {
             id: 1,
             name: 'Krasnoyarsk Center',
@@ -232,6 +244,17 @@ export default {
             pressure: 1014
           }
         ];
+
+        if (baseSensors.value.length === 0) {
+          baseSensors.value = fallbackData.map(s => ({
+            id: s.id,
+            name: s.name,
+            latitude: s.latitude,
+            longitude: s.longitude
+          }));
+        }
+
+        mapSensors.value = fallbackData;
       }
     };
 
@@ -252,12 +275,14 @@ export default {
           interval = 'month';
         }
 
-        const data = await fetchAggregatedData(startDate, endDate, interval);
-        console.log('Loaded aggregated sensor data:', data);
-        sensors.value = data;
+        // Use fetchAverageData instead of fetchAggregatedData to get one record per sensor
+        const siteIds = baseSensors.value.length > 0 ? baseSensors.value.map(s => s.id) : null;
+        const data = await fetchAverageData(startDate, endDate, interval, siteIds, null);
+        console.log('Loaded average sensor data:', data);
+        mapSensors.value = data;
       } catch (error) {
         console.error('Failed to load aggregated data:', error);
-        sensors.value = [];
+        mapSensors.value = [];
       }
     };
 
@@ -363,7 +388,23 @@ export default {
     };
 
     const openStatisticsModal = async (selectedSensors, districtKey) => {
-      selectedSensorsForStats.value = selectedSensors;
+      // Map selected sensor IDs to full sensor objects from baseSensors
+      selectedSensorsForStats.value = selectedSensors.map(s => {
+        const baseSensor = baseSensors.value.find(bs => bs.id === s.id);
+        const mapSensor = mapSensors.value.find(ms => ms.id === s.id);
+
+        return {
+          id: s.id,
+          name: baseSensor ? baseSensor.name : s.name,
+          latitude: baseSensor ? baseSensor.latitude : s.latitude,
+          longitude: baseSensor ? baseSensor.longitude : s.longitude,
+          pm25: mapSensor ? mapSensor.pm25 : s.pm25 || 0,
+          pm10: mapSensor ? mapSensor.pm10 : s.pm10 || 0,
+          temperature: mapSensor ? mapSensor.temperature : s.temperature || 0,
+          humidity: mapSensor ? mapSensor.humidity : s.humidity || 0,
+          pressure: mapSensor ? mapSensor.pressure : s.pressure || 0
+        };
+      });
 
       // If in range mode and district is selected, load time series for district
       if (selectionMode.value === 'range' && selectedDateRange.value && districtKey) {
@@ -414,26 +455,26 @@ export default {
       // Store interval for later use
       timelineScale.value = interval;
 
-      // Extract site IDs from current sensors
-      const siteIds = sensors.value.map(s => s.id);
+      // Extract site IDs from base sensors (static list)
+      const siteIds = baseSensors.value.length > 0 ? baseSensors.value.map(s => s.id) : null;
 
       try {
-        // Load average data for map display (all sensors)
+        // Load average data for map display (one record per sensor)
         const averageData = await fetchAverageData(
           start.startDate,
           end.endDate,
           interval,
-          siteIds.length > 0 ? siteIds : null,
+          siteIds,
           null
         );
 
         console.log('Loaded average data for map:', averageData);
-        sensors.value = averageData;
+        mapSensors.value = averageData;
 
         // Don't automatically open modal - wait for user to select district/sensors
         console.log('Range selected. Select district or sensors to view statistics.');
       } catch (error) {
-        console.error('Failed to load time series data:', error);
+        console.error('Failed to load average data:', error);
       }
     };
 
@@ -454,7 +495,8 @@ export default {
     });
 
     return {
-      sensors,
+      baseSensors,
+      mapSensors,
       isModalOpen,
       isCalendarOpen,
       isStatisticsModalOpen,

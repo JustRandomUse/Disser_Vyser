@@ -109,10 +109,12 @@ export async function groupSensorsByDistrict(sensors) {
 export async function getAvailableDistricts() {
   await loadDistricts();
 
-  return districts.map(d => ({
-    key: d.properties.key,
-    name: d.properties.name
-  }));
+  return districts
+    .map(d => ({
+      key: d.properties.key,
+      name: d.properties.name
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 }
 
 /**

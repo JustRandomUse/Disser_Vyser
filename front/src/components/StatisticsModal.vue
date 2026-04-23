@@ -3,22 +3,27 @@
     <div class="modal-content" @click.stop>
       <button class="close-btn" @click="closeModal">&times;</button>
 
-      <h2>Статистика по выбранным датчикам</h2>
+      <h2>Среднее значение по выбранным районам</h2>
       <p class="sensors-count">Датчиков: {{ sensors.length }}</p>
+      <p v-if="dateRangeText" class="date-range">{{ dateRangeText }}</p>
 
       <div class="parameter-selector">
-        <label>Параметр:</label>
-        <select v-model="selectedParameter" @change="renderChart">
-          <option value="pm25">PM2.5</option>
-          <option value="pm10">PM10</option>
-          <option value="temperature">Температура</option>
-          <option value="humidity">Влажность</option>
-          <option value="pressure">Давление</option>
-        </select>
+        <label>Показатели:</label>
+        <div class="param-buttons">
+          <button
+            v-for="param in availableParams"
+            :key="param"
+            :class="{ active: selectedParams.includes(param) }"
+            @click="toggleParam(param)"
+          >
+            {{ formatKey(param) }}
+          </button>
+        </div>
       </div>
 
       <div class="chart-section">
-        <div ref="statsChart" style="width: 100%; height: 400px;"></div>
+        <div v-if="selectedParams.length > 0" ref="statsChart" class="chart"></div>
+        <p v-else class="no-selection">Выберите параметры для отображения</p>
       </div>
 
       <div class="stats-section">
@@ -79,7 +84,17 @@ const emit = defineEmits(['close']);
 
 const statsChart = ref(null);
 const chartInstance = ref(null);
-const selectedParameter = ref('pm25');
+const selectedParams = ref(['pm25']);
+const availableParams = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
+
+const toggleParam = (param) => {
+  const index = selectedParams.value.indexOf(param);
+  if (index > -1) {
+    selectedParams.value.splice(index, 1);
+  } else {
+    selectedParams.value.push(param);
+  }
+};
 
 const statistics = computed(() => {
   if (props.sensors.length === 0) return {};
@@ -103,6 +118,50 @@ const statistics = computed(() => {
   });
 
   return stats;
+});
+
+const dateRangeText = computed(() => {
+  if (props.rangeType === 'instant') {
+    return null;
+  }
+
+  if (props.dateRange && props.dateRange.start && props.dateRange.end) {
+    const start = new Date(props.dateRange.start);
+    const end = new Date(props.dateRange.end);
+
+    if (props.rangeType === 'hour') {
+      return `Период: ${start.toLocaleDateString('ru-RU')} ${start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (props.rangeType === 'day') {
+      return `Период: ${start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+    } else if (props.rangeType === 'month') {
+      return `Период: ${start.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`;
+    } else if (props.rangeType === 'year') {
+      return `Период: ${start.getFullYear()} - ${end.getFullYear()}`;
+    }
+  }
+
+  // Fallback to timeSeriesData if dateRange is not available
+  if (props.timeSeriesData && props.timeSeriesData.length > 0 && props.timeSeriesData[0].data && props.timeSeriesData[0].data.length > 0) {
+    const firstPoint = props.timeSeriesData[0].data[0];
+    const lastPoint = props.timeSeriesData[0].data[props.timeSeriesData[0].data.length - 1];
+
+    if (firstPoint && lastPoint && firstPoint.time && lastPoint.time) {
+      const start = new Date(firstPoint.time);
+      const end = new Date(lastPoint.time);
+
+      if (props.rangeType === 'hour') {
+        return `Период: ${start.toLocaleDateString('ru-RU')} ${start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+      } else if (props.rangeType === 'day') {
+        return `Период: ${start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+      } else if (props.rangeType === 'month') {
+        return `Период: ${start.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`;
+      } else if (props.rangeType === 'year') {
+        return `Период: ${start.getFullYear()} - ${end.getFullYear()}`;
+      }
+    }
+  }
+
+  return null;
 });
 
 const closeModal = () => {
@@ -132,6 +191,14 @@ const getUnit = (key) => {
 };
 
 const renderChart = () => {
+  if (selectedParams.value.length === 0) {
+    if (chartInstance.value) {
+      chartInstance.value.dispose();
+      chartInstance.value = null;
+    }
+    return;
+  }
+
   if (chartInstance.value) {
     chartInstance.value.dispose();
   }
@@ -147,34 +214,40 @@ const renderChart = () => {
 };
 
 const renderTimeSeriesChart = () => {
-  const params = ['pm25', 'pm10', 'temperature', 'humidity', 'pressure'];
-  const selectedParam = selectedParameter.value;
+  const colors = {
+    pm25: '#ff6384',
+    pm10: '#36a2eb',
+    temperature: '#ffce56',
+    humidity: '#4bc0c0',
+    pressure: '#9966ff'
+  };
 
-  // Prepare data for each site
-  const series = props.timeSeriesData.map(site => {
-    const values = site.data.map(d => d[selectedParam]);
-    const times = site.data.map(d => d.time);
+  const units = {
+    pm25: 'мкг/м³',
+    pm10: 'мкг/м³',
+    temperature: '°C',
+    humidity: '%',
+    pressure: 'гПа'
+  };
 
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+  // Prepare data for each selected parameter across all sites
+  const series = [];
 
-    return {
-      name: site.name,
-      type: 'line',
-      data: values,
-      smooth: true,
-      markLine: {
-        data: [
-          { type: 'average', name: 'Среднее', label: { formatter: 'Среднее: {c}' } },
-          { type: 'min', name: 'Минимум', label: { formatter: 'Мин: {c}' } },
-          { type: 'max', name: 'Максимум', label: { formatter: 'Макс: {c}' } }
-        ],
-        lineStyle: {
-          type: 'dashed'
-        }
-      }
-    };
+  selectedParams.value.forEach(param => {
+    props.timeSeriesData.forEach(site => {
+      const values = site.data.map(d => d[param]);
+
+      series.push({
+        name: `${site.name} - ${formatKey(param)}`,
+        type: 'line',
+        data: values,
+        smooth: true,
+        itemStyle: {
+          color: colors[param]
+        },
+        yAxisIndex: selectedParams.value.indexOf(param)
+      });
+    });
   });
 
   const times = props.timeSeriesData[0]?.data.map(d => {
@@ -191,9 +264,31 @@ const renderTimeSeriesChart = () => {
     return d.time;
   }) || [];
 
+  // Create yAxis config for each selected parameter
+  const yAxisConfig = selectedParams.value.map((param, index) => ({
+    type: 'value',
+    name: formatKey(param) + ' (' + units[param] + ')',
+    position: index % 2 === 0 ? 'left' : 'right',
+    offset: Math.floor(index / 2) * 80,
+    axisLine: {
+      lineStyle: {
+        color: colors[param]
+      }
+    },
+    axisLabel: {
+      color: colors[param]
+    }
+  }));
+
+  // Calculate dynamic grid margins
+  const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
+  const rightAxesCount = Math.floor(selectedParams.value.length / 2);
+  const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
+  const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
+
   const option = {
     title: {
-      text: `${formatKey(selectedParam)} за период`,
+      text: `Сравнение параметров за период`,
       left: 'center',
       top: 10
     },
@@ -204,16 +299,17 @@ const renderTimeSeriesChart = () => {
       }
     },
     legend: {
-      data: props.timeSeriesData.map(s => s.name),
+      data: series.map(s => s.name),
       top: 40,
       type: 'scroll',
       selectedMode: false
     },
     grid: {
-      left: '10%',
-      right: '10%',
+      left: gridLeft,
+      right: gridRight,
       bottom: '15%',
-      top: '25%'
+      top: '25%',
+      containLabel: false
     },
     xAxis: {
       type: 'category',
@@ -223,13 +319,7 @@ const renderTimeSeriesChart = () => {
         rotate: 45
       }
     },
-    yAxis: {
-      type: 'value',
-      name: getUnit(selectedParam),
-      axisLabel: {
-        formatter: '{value}'
-      }
-    },
+    yAxis: yAxisConfig,
     series: series,
     toolbox: {
       feature: {
@@ -260,12 +350,6 @@ const renderTimeSeriesChart = () => {
 };
 
 const renderInstantChart = () => {
-  const selectedParam = selectedParameter.value;
-
-  if (!statistics.value[selectedParam]) {
-    return;
-  }
-
   const colors = {
     pm25: '#ff6384',
     pm10: '#36a2eb',
@@ -274,18 +358,102 @@ const renderInstantChart = () => {
     pressure: '#9966ff'
   };
 
-  const stat = statistics.value[selectedParam];
+  const units = {
+    pm25: 'мкг/м³',
+    pm10: 'мкг/м³',
+    temperature: '°C',
+    humidity: '%',
+    pressure: 'гПа'
+  };
 
-  // Create data points showing current values for each sensor
-  const data = props.sensors.map((sensor, index) => {
-    return [index, sensor[selectedParam] || 0];
+  // Create series for each selected parameter
+  const series = [];
+  const yAxisConfig = [];
+
+  selectedParams.value.forEach((param, index) => {
+    if (!statistics.value[param]) {
+      return;
+    }
+
+    const stat = statistics.value[param];
+
+    // Create single data point for aggregated average value
+    const data = [[0, stat.avg]];
+
+    series.push({
+      name: formatKey(param),
+      type: 'line',
+      smooth: true,
+      data: data,
+      yAxisIndex: index,
+      itemStyle: {
+        color: colors[param]
+      },
+      markLine: {
+        data: [
+          {
+            yAxis: stat.avg,
+            name: 'Среднее',
+            label: {
+              formatter: 'Среднее: {c}',
+              position: 'end'
+            }
+          }
+        ],
+        lineStyle: {
+          type: 'dashed'
+        }
+      },
+      markPoint: {
+        data: [
+          {
+            yAxis: stat.max,
+            xAxis: 0,
+            name: 'Максимум',
+            label: {
+              formatter: 'Макс: {c}'
+            }
+          },
+          {
+            yAxis: stat.min,
+            xAxis: 0,
+            name: 'Минимум',
+            label: {
+              formatter: 'Мин: {c}'
+            }
+          }
+        ]
+      }
+    });
+
+    yAxisConfig.push({
+      type: 'value',
+      name: formatKey(param) + ' (' + units[param] + ')',
+      position: index % 2 === 0 ? 'left' : 'right',
+      offset: Math.floor(index / 2) * 80,
+      axisLine: {
+        lineStyle: {
+          color: colors[param]
+        }
+      },
+      axisLabel: {
+        color: colors[param]
+      }
+    });
   });
 
-  const sensorNames = props.sensors.map(s => s.name || `Датчик ${s.id}`);
+  // Use time label for X axis instead of sensor names
+  const timeLabel = dateRangeText.value || 'Текущий момент';
+
+  // Calculate dynamic grid margins
+  const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
+  const rightAxesCount = Math.floor(selectedParams.value.length / 2);
+  const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
+  const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
 
   const option = {
     title: {
-      text: formatKey(selectedParam) + ' (текущие значения)',
+      text: 'Сравнение параметров (средние значения)',
       left: 'center',
       top: 10
     },
@@ -296,74 +464,28 @@ const renderInstantChart = () => {
       }
     },
     legend: {
-      data: [formatKey(selectedParam)],
+      data: selectedParams.value.map(p => formatKey(p)),
       top: 40,
       selectedMode: false
     },
     grid: {
-      left: '10%',
-      right: '10%',
+      left: gridLeft,
+      right: gridRight,
       bottom: '15%',
-      top: '25%'
+      top: '25%',
+      containLabel: false
     },
     xAxis: {
       type: 'category',
-      data: sensorNames,
+      data: [timeLabel],
       boundaryGap: false,
       axisLabel: {
-        rotate: 45,
+        rotate: 0,
         interval: 0
       }
     },
-    yAxis: {
-      type: 'value',
-      name: getUnit(selectedParam),
-      axisLabel: {
-        formatter: '{value}'
-      }
-    },
-    series: [
-      {
-        name: formatKey(selectedParam),
-        type: 'line',
-        smooth: true,
-        data: data,
-        itemStyle: {
-          color: colors[selectedParam]
-        },
-        markLine: {
-          data: [
-            {
-              yAxis: stat.avg,
-              name: 'Среднее',
-              label: {
-                formatter: 'Среднее: {c}',
-                position: 'end'
-              }
-            },
-            {
-              yAxis: stat.min,
-              name: 'Минимум',
-              label: {
-                formatter: 'Мин: {c}',
-                position: 'start'
-              }
-            },
-            {
-              yAxis: stat.max,
-              name: 'Максимум',
-              label: {
-                formatter: 'Макс: {c}',
-                position: 'start'
-              }
-            }
-          ],
-          lineStyle: {
-            type: 'dashed'
-          }
-        }
-      }
-    ],
+    yAxis: yAxisConfig,
+    series: series,
     toolbox: {
       feature: {
         dataZoom: {
@@ -395,10 +517,27 @@ const renderInstantChart = () => {
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     nextTick(() => {
-      renderChart();
+      // Small delay to ensure modal container has final size
+      setTimeout(() => {
+        renderChart();
+        // Resize chart after render to ensure correct dimensions
+        nextTick(() => {
+          if (chartInstance.value) {
+            chartInstance.value.resize();
+          }
+        });
+      }, 50);
     });
   }
 });
+
+watch(selectedParams, () => {
+  if (props.isOpen) {
+    nextTick(() => {
+      renderChart();
+    });
+  }
+}, { deep: true });
 
 onBeforeUnmount(() => {
   if (chartInstance.value) {
@@ -425,7 +564,7 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 12px;
   padding: 30px;
-  max-width: 1000px;
+  max-width: 1400px;
   width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
@@ -460,7 +599,14 @@ h2 {
 .sensors-count {
   color: #666;
   font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.date-range {
+  color: #666;
+  font-size: 14px;
   margin-bottom: 20px;
+  font-style: italic;
 }
 
 .stats-section {
@@ -503,34 +649,53 @@ h3 {
   padding: 10px;
 }
 
+.chart {
+  width: 100%;
+  height: 600px;
+}
+
 .parameter-selector {
   margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .parameter-selector label {
   font-weight: 600;
   color: #333;
+  display: block;
+  margin-bottom: 10px;
 }
 
-.parameter-selector select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
+.param-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.param-buttons button {
+  padding: 8px 16px;
+  border: 2px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
   background: white;
   cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-.parameter-selector select:hover {
+.param-buttons button:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.param-buttons button.active {
+  background: #3b82f6;
+  color: white;
   border-color: #3b82f6;
 }
 
-.parameter-selector select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.no-selection {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-style: italic;
 }
 </style>

@@ -5,74 +5,61 @@
 
       <h2>{{ sensorData.name }}</h2>
 
-      <div class="current-values">
-        <h3>Средние значения</h3>
-        <div class="param-selector">
-          <button
-            v-for="(key, index) in Object.keys(measurements)"
-            :key="index"
-            :class="{ active: selectedCurrentParam === key }"
-            @click="selectCurrentParam(key)"
-          >
-            {{ formatKey(key) }}
-          </button>
-        </div>
-        <div ref="currentValuesChart" style="width: 100%; height: 300px;"></div>
-
-        <div class="stats-section">
-          <h4>Средние значения</h4>
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>Параметр</th>
-                <th>Среднее</th>
-                <th>Минимум</th>
-                <th>Максимум</th>
-                <th>Единица</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(stat, key) in statistics" :key="key">
-                <td>{{ formatKey(key) }}</td>
-                <td>{{ stat.avg }}</td>
-                <td>{{ stat.min }}</td>
-                <td>{{ stat.max }}</td>
-                <td>{{ getUnit(key) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="chart-mode-selector">
+        <button
+          :class="{ active: chartMode === 'current' }"
+          @click="chartMode = 'current'"
+        >
+          Средние значения
+        </button>
+        <button
+          :class="{ active: chartMode === 'comparison' }"
+          @click="chartMode = 'comparison'"
+        >
+          Сравнение
+        </button>
       </div>
 
-      <div class="time-series-section">
-        <h3>Динамика значений</h3>
-        <div class="param-selector">
-          <button
-            v-for="(key, index) in Object.keys(measurements)"
-            :key="index"
-            :class="{ active: selectedSingleParam === key }"
-            @click="selectSingleParam(key)"
-          >
-            {{ formatKey(key) }}
-          </button>
-        </div>
-        <div ref="timeSeriesChart" style="width: 100%; height: 400px;"></div>
+      <div class="param-selector">
+        <button
+          v-for="(key, index) in Object.keys(measurements)"
+          :key="index"
+          :class="{ active: isParamActive(key) }"
+          @click="toggleParam(key)"
+        >
+          {{ formatKey(key) }}
+        </button>
       </div>
 
-      <div class="comparison-section">
-        <h3>Сравнение параметров</h3>
-        <div class="param-selector">
-          <button
-            v-for="(key, index) in Object.keys(measurements)"
-            :key="index"
-            :class="{ active: comparisonParams.includes(key) }"
-            @click="toggleComparisonParam(key)"
-          >
-            {{ formatKey(key) }}
-          </button>
-        </div>
-        <div v-if="comparisonParams.length > 0" ref="comparisonChart" style="width: 100%; height: 400px;"></div>
-        <p v-else class="no-selection">Выберите параметры для сравнения</p>
+      <div class="chart-container">
+        <div ref="mainChart" class="chart"></div>
+        <p v-if="chartMode === 'comparison' && comparisonParams.length === 0" class="no-selection">
+          Выберите параметры для сравнения
+        </p>
+      </div>
+
+      <div v-if="chartMode === 'current'" class="stats-section">
+        <h4>Средние значения</h4>
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Показатель</th>
+              <th>Среднее</th>
+              <th>Минимум</th>
+              <th>Максимум</th>
+              <th>Единица</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(stat, key) in statistics" :key="key">
+              <td>{{ formatKey(key) }}</td>
+              <td>{{ stat.avg }}</td>
+              <td>{{ stat.min }}</td>
+              <td>{{ stat.max }}</td>
+              <td>{{ getUnit(key) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -95,13 +82,9 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 
-const timeSeriesChart = ref(null);
-const comparisonChart = ref(null);
-const currentValuesChart = ref(null);
-const timeSeriesChartInstance = ref(null);
-const comparisonChartInstance = ref(null);
-const currentValuesChartInstance = ref(null);
-const selectedSingleParam = ref('pm25');
+const mainChart = ref(null);
+const mainChartInstance = ref(null);
+const chartMode = ref('current'); // 'current' | 'comparison'
 const selectedCurrentParam = ref('pm25');
 const comparisonParams = ref([]);
 
@@ -162,20 +145,25 @@ const getUnit = (key) => {
   return units[key] || '';
 };
 
-const selectSingleParam = (key) => {
-  selectedSingleParam.value = key;
+const isParamActive = (key) => {
+  if (chartMode.value === 'current') {
+    return selectedCurrentParam.value === key;
+  } else if (chartMode.value === 'comparison') {
+    return comparisonParams.value.includes(key);
+  }
+  return false;
 };
 
-const selectCurrentParam = (key) => {
-  selectedCurrentParam.value = key;
-};
-
-const toggleComparisonParam = (key) => {
-  const index = comparisonParams.value.indexOf(key);
-  if (index > -1) {
-    comparisonParams.value.splice(index, 1);
-  } else {
-    comparisonParams.value.push(key);
+const toggleParam = (key) => {
+  if (chartMode.value === 'current') {
+    selectedCurrentParam.value = key;
+  } else if (chartMode.value === 'comparison') {
+    const index = comparisonParams.value.indexOf(key);
+    if (index > -1) {
+      comparisonParams.value.splice(index, 1);
+    } else {
+      comparisonParams.value.push(key);
+    }
   }
 };
 
@@ -215,12 +203,20 @@ const generateTimeSeriesData = () => {
   return data;
 };
 
+const renderChart = () => {
+  if (chartMode.value === 'current') {
+    renderCurrentValuesChart();
+  } else if (chartMode.value === 'comparison') {
+    renderComparisonChart();
+  }
+};
+
 const renderCurrentValuesChart = () => {
-  if (currentValuesChartInstance.value) {
-    currentValuesChartInstance.value.dispose();
+  if (mainChartInstance.value) {
+    mainChartInstance.value.dispose();
   }
 
-  currentValuesChartInstance.value = echarts.init(currentValuesChart.value);
+  mainChartInstance.value = echarts.init(mainChart.value);
 
   const data = generateTimeSeriesData();
   const param = selectedCurrentParam.value;
@@ -254,8 +250,8 @@ const renderCurrentValuesChart = () => {
       selectedMode: false
     },
     grid: {
-      left: '15%',
-      right: '15%',
+      left: '8%',
+      right: '8%',
       bottom: '15%',
       top: '25%'
     },
@@ -288,27 +284,29 @@ const renderCurrentValuesChart = () => {
                 formatter: 'Среднее: {c}',
                 position: 'end'
               }
-            },
-            {
-              type: 'min',
-              name: 'Минимум',
-              label: {
-                formatter: 'Мин: {c}',
-                position: 'end'
-              }
-            },
-            {
-              type: 'max',
-              name: 'Максимум',
-              label: {
-                formatter: 'Макс: {c}',
-                position: 'end'
-              }
             }
           ],
           lineStyle: {
             type: 'dashed'
           }
+        },
+        markPoint: {
+          data: [
+            {
+              type: 'max',
+              name: 'Максимум',
+              label: {
+                formatter: 'Макс: {c}'
+              }
+            },
+            {
+              type: 'min',
+              name: 'Минимум',
+              label: {
+                formatter: 'Мин: {c}'
+              }
+            }
+          ]
         }
       }
     ],
@@ -337,126 +335,19 @@ const renderCurrentValuesChart = () => {
     ]
   };
 
-  currentValuesChartInstance.value.setOption(option);
-};
-
-const renderTimeSeriesChart = () => {
-  if (timeSeriesChartInstance.value) {
-    timeSeriesChartInstance.value.dispose();
-  }
-
-  timeSeriesChartInstance.value = echarts.init(timeSeriesChart.value);
-  const data = generateTimeSeriesData();
-
-  const param = selectedSingleParam.value;
-  const colors = {
-    pm25: '#ff6384',
-    pm10: '#36a2eb',
-    temperature: '#ffce56',
-    humidity: '#4bc0c0',
-    pressure: '#9966ff'
-  };
-
-  const units = {
-    pm25: 'мкг/м³',
-    pm10: 'мкг/м³',
-    temperature: '°C',
-    humidity: '%',
-    pressure: 'гПа'
-  };
-
-  const option = {
-    title: {
-      text: formatKey(param) + ' ',
-      left: 'center',
-      top: 10
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross'
-      }
-    },
-    legend: {
-      data: [formatKey(param)],
-      top: 40,
-      selectedMode: false
-    },
-    grid: {
-      left: '3%',
-      right: '3%',
-      bottom: '10%',
-      top: '20%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'time',
-      boundaryGap: false
-    },
-    yAxis: {
-      type: 'value',
-      name: formatKey(param) + ' (' + units[param] + ')',
-      axisLine: {
-        lineStyle: {
-          color: colors[param]
-        }
-      }
-    },
-    toolbox: {
-      feature: {
-        dataZoom: {
-          yAxisIndex: 'none'
-        },
-        restore: {},
-        saveAsImage: {}
-      }
-    },
-    dataZoom: [
-      {
-        type: 'inside',
-        start: 0,
-        end: 100
-      },
-      {
-        show: true,
-        type: 'slider',
-        top: '90%',
-        start: 0,
-        end: 100
-      }
-    ],
-    series: [
-      {
-        name: formatKey(param),
-        type: 'line',
-        smooth: true,
-        data: data.map(d => [d.date, d[param]]),
-        itemStyle: {
-          color: colors[param]
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: colors[param] + '4D' },
-            { offset: 1, color: colors[param] + '0D' }
-          ])
-        }
-      }
-    ]
-  };
-
-  timeSeriesChartInstance.value.setOption(option);
+  mainChartInstance.value.setOption(option);
 };
 
 const renderComparisonChart = () => {
-  if (comparisonChartInstance.value) {
-    comparisonChartInstance.value.dispose();
+  if (mainChartInstance.value) {
+    mainChartInstance.value.dispose();
   }
 
   if (comparisonParams.value.length === 0) {
     return;
   }
 
-  comparisonChartInstance.value = echarts.init(comparisonChart.value);
+  mainChartInstance.value = echarts.init(mainChart.value);
   const data = generateTimeSeriesData();
 
   const colors = {
@@ -568,33 +459,41 @@ const renderComparisonChart = () => {
     series: series
   };
 
-  comparisonChartInstance.value.setOption(option);
+  mainChartInstance.value.setOption(option);
 };
 
 const renderCharts = () => {
-  renderCurrentValuesChart();
-  renderTimeSeriesChart();
-  renderComparisonChart();
+  renderChart();
+
+  // Resize chart after render to ensure correct dimensions
+  nextTick(() => {
+    if (mainChartInstance.value) {
+      mainChartInstance.value.resize();
+    }
+  });
 };
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     nextTick(() => {
-      renderCharts();
+      // Small delay to ensure modal container has final size
+      setTimeout(() => {
+        renderCharts();
+      }, 50);
     });
   }
 });
 
-watch(selectedSingleParam, () => {
+watch(chartMode, () => {
   if (props.isOpen) {
     nextTick(() => {
-      renderTimeSeriesChart();
+      renderChart();
     });
   }
 });
 
 watch(selectedCurrentParam, () => {
-  if (props.isOpen) {
+  if (props.isOpen && chartMode.value === 'current') {
     nextTick(() => {
       renderCurrentValuesChart();
     });
@@ -602,7 +501,7 @@ watch(selectedCurrentParam, () => {
 });
 
 watch(comparisonParams, () => {
-  if (props.isOpen) {
+  if (props.isOpen && chartMode.value === 'comparison') {
     nextTick(() => {
       renderComparisonChart();
     });
@@ -610,14 +509,8 @@ watch(comparisonParams, () => {
 }, { deep: true });
 
 onBeforeUnmount(() => {
-  if (timeSeriesChartInstance.value) {
-    timeSeriesChartInstance.value.dispose();
-  }
-  if (comparisonChartInstance.value) {
-    comparisonChartInstance.value.dispose();
-  }
-  if (currentValuesChartInstance.value) {
-    currentValuesChartInstance.value.dispose();
+  if (mainChartInstance.value) {
+    mainChartInstance.value.dispose();
   }
 });
 </script>
@@ -640,7 +533,7 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 12px;
   padding: 30px;
-  max-width: 1200px;
+  max-width: 1400px;
   width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
@@ -672,16 +565,51 @@ h2 {
   color: #333;
 }
 
+.chart-mode-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.chart-mode-selector button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.chart-mode-selector button.active {
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-mode-selector button:hover:not(.active) {
+  color: #333;
+}
+
 h3 {
   margin: 30px 0 15px 0;
   color: #555;
   font-size: 18px;
 }
 
-.current-values,
-.time-series-section,
-.comparison-section {
-  margin-bottom: 30px;
+.chart-container {
+  margin-bottom: 20px;
+}
+
+.chart {
+  width: 100%;
+  height: 600px;
 }
 
 .param-selector {

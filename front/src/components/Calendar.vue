@@ -265,7 +265,7 @@ const selectMonth = (monthData) => {
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
     // First click - set start only
     pendingStart.value = startOfMonth;
-    pendingEnd.value = endOfMonth; // Set end to same month for single month selection
+    pendingEnd.value = null;
     isSelectingRange.value = true;
   } else if (pendingStart.value && !pendingEnd.value) {
     // Second click - set end
@@ -289,7 +289,7 @@ const selectYear = (year) => {
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
     // First click - set start only
     pendingStart.value = startOfYear;
-    pendingEnd.value = endOfYear; // Set end to same year for single year selection
+    pendingEnd.value = null;
     isSelectingRange.value = true;
   } else if (pendingStart.value && !pendingEnd.value) {
     // Second click - set end
@@ -319,7 +319,8 @@ const selectToday = () => {
 const applySelection = () => {
   if (!pendingStart.value) return;
 
-  if (pendingEnd.value && pendingStart.value.getTime() !== pendingEnd.value.getTime()) {
+  if (pendingEnd.value) {
+    // Range selected
     startDate.value = pendingStart.value;
     endDate.value = pendingEnd.value;
     emit('date-range-selected', {
@@ -327,6 +328,7 @@ const applySelection = () => {
       end: endDate.value
     });
   } else {
+    // Single date selected
     emit('date-selected', pendingStart.value);
   }
   close();
