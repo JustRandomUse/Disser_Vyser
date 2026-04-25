@@ -27,6 +27,8 @@
     <SensorModal
       :isOpen="isModalOpen"
       :sensorData="selectedSensor"
+      :dateRange="selectedDateRange"
+      :rangeType="selectionMode === 'range' ? timelineScale : 'instant'"
       @close="closeModal"
     />
     <SidePanel

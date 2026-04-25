@@ -53,6 +53,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
+import { fetchTimeSeriesData } from '../services/api';
 
 const props = defineProps({
   isOpen: {
@@ -62,6 +63,14 @@ const props = defineProps({
   sensorData: {
     type: Object,
     default: () => ({})
+  },
+  dateRange: {
+    type: Object,
+    default: null
+  },
+  rangeType: {
+    type: String,
+    default: 'instant'
   }
 });
 
@@ -70,6 +79,7 @@ const emit = defineEmits(['close']);
 const mainChart = ref(null);
 const mainChartInstance = ref(null);
 const selectedParams = ref(['pm25']); // Array of selected parameters
+const realTimeSeriesData = ref(null); // Реальные данные из API
 
 const measurements = computed(() => {
   const data = props.sensorData;
@@ -137,7 +147,53 @@ const toggleParam = (key) => {
   }
 };
 
+// Загрузка реальных данных из API
+const loadRealTimeSeriesData = async () => {
+  if (!props.dateRange || props.rangeType === 'instant' || !props.sensorData.id) {
+    realTimeSeriesData.value = null;
+    return;
+  }
+
+  try {
+    // Определяем интервал на основе rangeType
+    let interval = 'hour';
+    if (props.rangeType === 'day') interval = 'day';
+    else if (props.rangeType === 'month') interval = 'month';
+    else if (props.rangeType === 'year') interval = 'month';
+
+    const data = await fetchTimeSeriesData(
+      props.dateRange.start,
+      props.dateRange.end,
+      interval,
+      [props.sensorData.id],
+      null
+    );
+
+    console.log('Loaded real time series data for sensor:', data);
+    realTimeSeriesData.value = data;
+  } catch (error) {
+    console.error('Failed to load real time series data:', error);
+    realTimeSeriesData.value = null;
+  }
+};
+
 const generateTimeSeriesData = () => {
+  // Если есть реальные данные из API - используем их
+  if (realTimeSeriesData.value && realTimeSeriesData.value.length > 0) {
+    const sensorData = realTimeSeriesData.value[0];
+    if (sensorData.data && sensorData.data.length > 0) {
+      return sensorData.data.map(point => ({
+        date: point.time,
+        pm25: point.pm25 || 0,
+        pm10: point.pm10 || 0,
+        temperature: point.temperature || 0,
+        humidity: point.humidity || 0,
+        pressure: point.pressure || 0
+      }));
+    }
+  }
+
+  // Иначе генерируем фейковые данные (как раньше)
   const data = [];
   const now = new Date();
 
@@ -523,8 +579,11 @@ const renderCharts = () => {
   });
 };
 
-watch(() => props.isOpen, (newVal) => {
+watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
+    // Загружаем реальные данные если выбран период
+    await loadRealTimeSeriesData();
+
     nextTick(() => {
       // Small delay to ensure modal container has final size
       setTimeout(() => {
@@ -533,6 +592,16 @@ watch(() => props.isOpen, (newVal) => {
     });
   }
 });
+
+// Watch для изменения периода
+watch(() => [props.dateRange, props.rangeType], async () => {
+  if (props.isOpen) {
+    await loadRealTimeSeriesData();
+    nextTick(() => {
+      renderChart();
+    });
+  }
+}, { deep: true });
 
 watch(selectedParams, () => {
   if (props.isOpen) {
