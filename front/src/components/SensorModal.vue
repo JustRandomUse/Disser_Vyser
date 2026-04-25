@@ -227,23 +227,55 @@ const renderSingleParamChart = () => {
     legend: {
       data: [formatKey(param)],
       top: 40,
-      selectedMode: false
+      selectedMode: false,
+      orient: 'vertical',
+      right: 10,
+      top: 80,
+      textStyle: {
+        fontSize: 11
+      }
     },
     grid: {
-      left: '8%',
-      right: '8%',
-      bottom: '15%',
-      top: '25%'
+      left: 60,
+      right: 150,
+      bottom: 80,
+      top: 80
     },
     xAxis: {
       type: 'time',
-      boundaryGap: false
+      boundaryGap: false,
+      axisLabel: {
+        fontSize: 11
+      }
     },
     yAxis: {
       type: 'value',
       name: getUnit(param),
+      nameLocation: 'middle',
+      nameGap: 50,
+      nameTextStyle: {
+        color: colors[param],
+        fontWeight: 'bold',
+        fontSize: 12
+      },
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: colors[param],
+          width: 2
+        }
+      },
       axisLabel: {
-        formatter: '{value}'
+        formatter: '{value}',
+        color: colors[param],
+        fontSize: 11
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#e0e0e0',
+          type: 'dashed'
+        }
       }
     },
     series: [
@@ -310,20 +342,25 @@ const renderSingleParamChart = () => {
         },
         restore: {},
         saveAsImage: {}
-      }
+      },
+      right: 20,
+      top: 10
     },
     dataZoom: [
       {
         type: 'inside',
         start: 0,
-        end: 100
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true
       },
       {
         show: true,
         type: 'slider',
-        top: '90%',
+        bottom: 20,
         start: 0,
-        end: 100
+        end: 100,
+        height: 30
       }
     ]
   };
@@ -359,14 +396,31 @@ const renderComparisonChart = () => {
     type: 'value',
     name: formatKey(param) + ' (' + units[param] + ')',
     position: index % 2 === 0 ? 'left' : 'right',
-    offset: Math.floor(index / 2) * 80,
+    offset: Math.floor(index / 2) * 60,
+    nameLocation: 'middle',
+    nameGap: 50,
+    nameTextStyle: {
+      color: colors[param],
+      fontWeight: 'bold',
+      fontSize: 12
+    },
     axisLine: {
+      show: true,
       lineStyle: {
-        color: colors[param]
+        color: colors[param],
+        width: 2
       }
     },
     axisLabel: {
-      color: colors[param]
+      color: colors[param],
+      fontSize: 11
+    },
+    splitLine: {
+      show: index === 0,
+      lineStyle: {
+        color: '#e0e0e0',
+        type: 'dashed'
+      }
     }
   }));
 
@@ -390,8 +444,8 @@ const renderComparisonChart = () => {
   // Calculate dynamic grid margins based on number of axes
   const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
   const rightAxesCount = Math.floor(selectedParams.value.length / 2);
-  const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
-  const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
+  const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
+  const gridRight = rightAxesCount > 0 ? 60 + (rightAxesCount - 1) * 60 : 60;
 
   const option = {
     title: {
@@ -408,18 +462,27 @@ const renderComparisonChart = () => {
     legend: {
       data: selectedParams.value.map(p => formatKey(p)),
       top: 40,
-      selectedMode: false
+      selectedMode: false,
+      orient: 'vertical',
+      right: 10,
+      top: 80,
+      textStyle: {
+        fontSize: 11
+      }
     },
     grid: {
       left: gridLeft,
-      right: gridRight,
-      bottom: '10%',
-      top: '20%',
+      right: gridRight + 150,
+      bottom: 80,
+      top: 80,
       containLabel: false
     },
     xAxis: {
       type: 'time',
-      boundaryGap: false
+      boundaryGap: false,
+      axisLabel: {
+        fontSize: 11
+      }
     },
     yAxis: yAxisConfig,
     toolbox: {
@@ -429,20 +492,25 @@ const renderComparisonChart = () => {
         },
         restore: {},
         saveAsImage: {}
-      }
+      },
+      right: 20,
+      top: 10
     },
     dataZoom: [
       {
         type: 'inside',
         start: 0,
-        end: 100
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true
       },
       {
         show: true,
         type: 'slider',
-        top: '90%',
+        bottom: 20,
         start: 0,
-        end: 100
+        end: 100,
+        height: 30
       }
     ],
     series: series
@@ -504,14 +572,13 @@ onBeforeUnmount(() => {
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 1400px;
-  width: 90vw;
-  max-height: 90vh;
+  border-radius: 0;
+  padding: 20px;
+  width: 100vw;
+  height: 100vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
 .close-btn {
@@ -550,7 +617,8 @@ h3 {
 
 .chart {
   width: 100%;
-  height: 600px;
+  height: calc(100vh - 300px);
+  min-height: 500px;
 }
 
 .param-selector {
