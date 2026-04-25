@@ -237,8 +237,8 @@ const renderSingleParamChart = () => {
     },
     grid: {
       left: 60,
-      right: 150,
-      bottom: 80,
+      right: 200,
+      bottom: 60,
       top: 80
     },
     xAxis: {
@@ -337,9 +337,6 @@ const renderSingleParamChart = () => {
     ],
     toolbox: {
       feature: {
-        dataZoom: {
-          yAxisIndex: 'none'
-        },
         restore: {},
         saveAsImage: {}
       },
@@ -353,14 +350,6 @@ const renderSingleParamChart = () => {
         end: 100,
         zoomOnMouseWheel: true,
         moveOnMouseMove: true
-      },
-      {
-        show: true,
-        type: 'slider',
-        bottom: 20,
-        start: 0,
-        end: 100,
-        height: 30
       }
     ]
   };
@@ -445,7 +434,7 @@ const renderComparisonChart = () => {
   const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
   const rightAxesCount = Math.floor(selectedParams.value.length / 2);
   const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
-  const gridRight = rightAxesCount > 0 ? 60 + (rightAxesCount - 1) * 60 : 60;
+  const gridRight = 200; // Фиксированный отступ справа для легенды
 
   const option = {
     title: {
@@ -472,8 +461,8 @@ const renderComparisonChart = () => {
     },
     grid: {
       left: gridLeft,
-      right: gridRight + 150,
-      bottom: 80,
+      right: gridRight,
+      bottom: 60,
       top: 80,
       containLabel: false
     },
@@ -487,9 +476,6 @@ const renderComparisonChart = () => {
     yAxis: yAxisConfig,
     toolbox: {
       feature: {
-        dataZoom: {
-          yAxisIndex: 'none'
-        },
         restore: {},
         saveAsImage: {}
       },
@@ -503,14 +489,6 @@ const renderComparisonChart = () => {
         end: 100,
         zoomOnMouseWheel: true,
         moveOnMouseMove: true
-      },
-      {
-        show: true,
-        type: 'slider',
-        bottom: 20,
-        start: 0,
-        end: 100,
-        height: 30
       }
     ],
     series: series
