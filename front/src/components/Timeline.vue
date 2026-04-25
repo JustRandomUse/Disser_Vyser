@@ -36,6 +36,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { formatDateISO, formatDateRangeISO } from '../utils/dateFormat';
 
 const props = defineProps({
   date: {
@@ -72,24 +73,10 @@ watch(() => props.date, () => {
 
 const formattedDate = computed(() => {
   if (props.dateRange && props.dateRange.start && props.dateRange.end) {
-    const startStr = props.dateRange.start.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-    const endStr = props.dateRange.end.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-    return `${startStr} — ${endStr}`;
+    return formatDateRangeISO(props.dateRange.start, props.dateRange.end);
   }
 
-  return props.date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
+  return formatDateISO(props.date);
 });
 
 const totalPages = computed(() => {

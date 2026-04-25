@@ -13,6 +13,33 @@ export function formatDay(date) {
 }
 
 /**
+ * Format date as ISO: "2026-04-01"
+ */
+export function formatDateISO(date) {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Format date range as ISO: "2026-04-01 — 2026-04-05"
+ * If dates are the same, returns single date: "2026-04-01"
+ */
+export function formatDateRangeISO(start, end) {
+  if (!start || !end) return '';
+
+  const startStr = formatDateISO(start);
+  const endStr = formatDateISO(end);
+
+  if (startStr === endStr) {
+    return startStr;
+  }
+
+  return `${startStr} — ${endStr}`;
+}
+
+/**
  * Format date as short day: "01.04"
  */
 export function formatDayShort(date) {
