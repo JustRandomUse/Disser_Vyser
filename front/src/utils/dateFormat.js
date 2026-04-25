@@ -49,11 +49,29 @@ export function formatDayShort(date) {
 }
 
 /**
+ * Format date as short day ISO: "04-01"
+ */
+export function formatDayShortISO(date) {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  return `${month}-${day}`;
+}
+
+/**
  * Format date as month: "Апр 2026"
  */
 export function formatMonth(date) {
   const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/**
+ * Format date as month ISO: "2026-04"
+ */
+export function formatMonthISO(date) {
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${year}-${month}`;
 }
 
 /**
