@@ -298,11 +298,16 @@ export default {
       // Determine date range and range type for sensor modal
       let startDate, endDate, rangeType, interval;
 
-      if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
-        // User selected a range on timeline - use it
+      if (selectedTimePoint.value) {
+        // User selected a specific time point on timeline
+        startDate = selectedTimePoint.value.startDate;
+        endDate = selectedTimePoint.value.endDate;
+        rangeType = selectedTimePoint.value.type;
+      } else if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
+        // User selected a range (from calendar or range selection)
         startDate = selectedDateRange.value.start;
         endDate = selectedDateRange.value.end;
-        rangeType = selectionMode.value === 'range' ? timelineScale.value : (selectedTimePoint.value ? selectedTimePoint.value.type : 'hour');
+        rangeType = timelineScale.value || 'hour';
       } else {
         // No timeline selection - fallback to current day with hourly breakdown
         const currentDate = selectedDate.value || new Date();
@@ -321,6 +326,15 @@ export default {
       else if (rangeType === 'month') interval = 'month';
       else if (rangeType === 'year') interval = 'month';
       else interval = 'hour'; // fallback
+
+      console.log('📊 openModal debug:', {
+        rangeType,
+        interval,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        selectedTimePoint: selectedTimePoint.value?.type,
+        selectionMode: selectionMode.value
+      });
 
       try {
         const data = await fetchTimeSeriesData(
