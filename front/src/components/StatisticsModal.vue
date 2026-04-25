@@ -41,9 +41,9 @@
           <tbody>
             <tr v-for="(stat, key) in statistics" :key="key">
               <td>{{ formatKey(key) }}</td>
-              <td>{{ stat.avg }}</td>
-              <td>{{ stat.min }}</td>
-              <td>{{ stat.max }}</td>
+              <td>{{ formatDisplayValue(stat.avg) }}</td>
+              <td>{{ formatDisplayValue(stat.min) }}</td>
+              <td>{{ formatDisplayValue(stat.max) }}</td>
               <td>{{ getUnit(key) }}</td>
             </tr>
           </tbody>
@@ -56,6 +56,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
+import { isValidMetricValue, formatDisplayValue } from '../utils/sensorDataRules';
 
 const props = defineProps({
   isOpen: {
@@ -110,7 +111,7 @@ const statistics = computed(() => {
       props.timeSeriesData.forEach(site => {
         if (site.data && Array.isArray(site.data)) {
           site.data.forEach(point => {
-            if (point[param] && point[param] > 0) {
+            if (isValidMetricValue(point[param])) {
               allValues.push(point[param]);
             }
           });
@@ -140,7 +141,7 @@ const statistics = computed(() => {
   const stats = {};
 
   params.forEach(param => {
-    const values = props.sensors.map(s => s[param] || 0).filter(v => v > 0);
+    const values = props.sensors.map(s => s[param]).filter(v => isValidMetricValue(v));
     if (values.length > 0) {
       const avg = values.reduce((a, b) => a + b, 0) / values.length;
       const min = Math.min(...values);
@@ -302,7 +303,7 @@ const renderTimeSeriesChart = () => {
 
   selectedParams.value.forEach(param => {
     props.timeSeriesData.forEach(site => {
-      const values = site.data.map(d => d[param]);
+      const values = site.data.map(d => d[param]).filter(v => isValidMetricValue(v));
 
       series.push({
         name: `${site.name} - ${formatKey(param)}`,

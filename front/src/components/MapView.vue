@@ -17,6 +17,7 @@ import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 import { fromLonLat } from 'ol/proj';
+import { isValidMetricValue } from '../utils/sensorDataRules';
 
 const props = defineProps({
   sensors: {
@@ -150,8 +151,16 @@ const updateMarkers = (sensors) => {
         geometry: new Point(fromLonLat([sensor.longitude, sensor.latitude]))
       });
 
-      let value = sensor[selectedParam] || 0;
-      let displayValue = Math.round(value * 10) / 10;
+      let value = sensor[selectedParam];
+      let displayValue = '—';
+
+      // Check if value is valid
+      if (isValidMetricValue(value)) {
+        displayValue = Math.round(value * 10) / 10;
+      } else {
+        // For unavailable params, don't show marker color
+        value = null;
+      }
 
       // Add visual indicator for range mode
       const isRangeMode = props.selectionMode === 'range';
@@ -167,7 +176,8 @@ const updateMarkers = (sensors) => {
         displayValue = Math.round(value);
       }
 
-      const color = getColorForValue(selectedParam, value);
+      // Use gray color for unavailable values
+      const color = value !== null ? getColorForValue(selectedParam, value) : '#999999';
 
       feature.setStyle(new Style({
         image: new CircleStyle({

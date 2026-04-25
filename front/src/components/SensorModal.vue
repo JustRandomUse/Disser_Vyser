@@ -42,9 +42,9 @@
           <tbody>
             <tr v-for="(stat, key) in statistics" :key="key">
               <td>{{ formatKey(key) }}</td>
-              <td>{{ stat.avg }}</td>
-              <td>{{ stat.min }}</td>
-              <td>{{ stat.max }}</td>
+              <td>{{ formatDisplayValue(stat.avg) }}</td>
+              <td>{{ formatDisplayValue(stat.min) }}</td>
+              <td>{{ formatDisplayValue(stat.max) }}</td>
               <td>{{ getUnit(key) }}</td>
             </tr>
           </tbody>
@@ -57,6 +57,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
+import { isValidMetricValue, formatDisplayValue } from '../utils/sensorDataRules';
 
 const props = defineProps({
   isOpen: {
@@ -92,9 +93,9 @@ const measurements = computed(() => {
   return {
     pm25: data.pm25 || 0,
     pm10: data.pm10 || 0,
-    temperature: data.temperature || 0,
-    humidity: data.humidity || 0,
-    pressure: data.pressure || 0
+    temperature: data.temperature,
+    humidity: data.humidity,
+    pressure: data.pressure
   };
 });
 
@@ -107,9 +108,9 @@ const chartData = computed(() => {
         date: point.time,
         pm25: point.pm25 || 0,
         pm10: point.pm10 || 0,
-        temperature: point.temperature || 0,
-        humidity: point.humidity || 0,
-        pressure: point.pressure || 0
+        temperature: point.temperature,
+        humidity: point.humidity,
+        pressure: point.pressure
       }));
     }
   }
@@ -127,7 +128,7 @@ const statistics = computed(() => {
   const stats = {};
 
   Object.keys(measurements.value).forEach(param => {
-    const values = data.map(d => d[param]).filter(v => v > 0);
+    const values = data.map(d => d[param]).filter(v => isValidMetricValue(v));
 
     if (values.length > 0) {
       const avg = values.reduce((a, b) => a + b, 0) / values.length;
@@ -248,7 +249,7 @@ const renderSingleParamChart = () => {
     pressure: '#9966ff'
   };
 
-  const values = data.map(d => d[param]).filter(v => v > 0);
+  const values = data.map(d => d[param]).filter(v => isValidMetricValue(v));
 
   if (values.length === 0) {
     mainChartInstance.value = null;
@@ -328,7 +329,7 @@ const renderSingleParamChart = () => {
         name: formatKey(param),
         type: 'line',
         smooth: true,
-        data: data.map(d => [d.date, d[param]]),
+        data: data.map(d => [d.date, d[param]]).filter(([date, val]) => isValidMetricValue(val)),
         itemStyle: {
           color: colors[param]
         },
@@ -438,33 +439,43 @@ const renderComparisonChart = () => {
   const ranges = {};
 
   selectedParams.value.forEach(param => {
-    const values = data.map(d => d[param]);
+    const values = data.map(d => d[param]).filter(v => isValidMetricValue(v));
+
+    if (values.length === 0) {
+      return; // Skip params with no valid data
+    }
+
     const min = Math.min(...values);
     const max = Math.max(...values);
     ranges[param] = { min, max, range: max - min };
 
     normalizedData[param] = data.map(d => {
+      if (!isValidMetricValue(d[param])) {
+        return null; // Skip invalid values
+      }
       const normalized = ranges[param].range > 0
         ? ((d[param] - min) / ranges[param].range) * 100
         : 50;
       return [d.date, normalized];
-    });
+    }).filter(item => item !== null);
   });
 
   // Создаем серии с нормализованными данными
-  const series = selectedParams.value.map((param) => ({
-    name: formatKey(param),
-    type: 'line',
-    smooth: true,
-    yAxisIndex: 0,
-    data: normalizedData[param],
-    itemStyle: {
-      color: colors[param]
-    },
-    lineStyle: {
-      width: 2
-    }
-  }));
+  const series = selectedParams.value
+    .filter(param => normalizedData[param] && normalizedData[param].length > 0)
+    .map((param) => ({
+      name: formatKey(param),
+      type: 'line',
+      smooth: true,
+      yAxisIndex: 0,
+      data: normalizedData[param],
+      itemStyle: {
+        color: colors[param]
+      },
+      lineStyle: {
+        width: 2
+      }
+    }));
 
   // Формируем легенду с текущими средними значениями
   const legendData = selectedParams.value.map(param => {
