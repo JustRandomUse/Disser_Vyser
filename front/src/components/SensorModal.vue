@@ -21,6 +21,7 @@
         <p v-if="selectedParams.length === 0" class="no-selection">
           Выберите параметры для отображения
         </p>
+        <p v-if="dateRangeText" class="date-range-info">{{ dateRangeText }}</p>
       </div>
 
       <div class="stats-section">
@@ -110,6 +111,27 @@ const statistics = computed(() => {
   });
 
   return stats;
+});
+
+const dateRangeText = computed(() => {
+  if (!props.dateRange || props.rangeType === 'instant') {
+    return 'Последние 24 часа (сгенерированные данные)';
+  }
+
+  const start = new Date(props.dateRange.start);
+  const end = new Date(props.dateRange.end);
+
+  if (props.rangeType === 'hour') {
+    return `Период: ${start.toLocaleDateString('ru-RU')} ${start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (props.rangeType === 'day') {
+    return `Период: ${start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  } else if (props.rangeType === 'month') {
+    return `Период: ${start.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`;
+  } else if (props.rangeType === 'year') {
+    return `Период: ${start.getFullYear()} - ${end.getFullYear()}`;
+  }
+
+  return null;
 });
 
 const closeModal = () => {
@@ -716,6 +738,17 @@ h3 {
   color: #999;
   padding: 40px;
   font-style: italic;
+}
+
+.date-range-info {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  margin-top: 10px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .stats-section {
