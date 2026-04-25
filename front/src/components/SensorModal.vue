@@ -171,7 +171,13 @@ const toggleParam = (key) => {
 
 // Загрузка реальных данных из API
 const loadRealTimeSeriesData = async () => {
-  if (!props.dateRange || props.rangeType === 'instant' || !props.sensorData.id) {
+  if (!props.dateRange || !props.sensorData.id) {
+    realTimeSeriesData.value = null;
+    return;
+  }
+
+  // Skip loading for instant mode without a specific time point
+  if (props.rangeType === 'instant') {
     realTimeSeriesData.value = null;
     return;
   }

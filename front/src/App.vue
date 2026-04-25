@@ -28,7 +28,7 @@
       :isOpen="isModalOpen"
       :sensorData="selectedSensor"
       :dateRange="selectedDateRange"
-      :rangeType="selectionMode === 'range' ? timelineScale : 'instant'"
+      :rangeType="selectionMode === 'range' ? timelineScale : (selectedTimePoint ? selectedTimePoint.type : 'instant')"
       @close="closeModal"
     />
     <SidePanel
@@ -303,6 +303,12 @@ export default {
       selectionMode.value = 'instant';
 
       if (!timePoint) return;
+
+      // Set selectedDateRange for the selected time point
+      selectedDateRange.value = {
+        start: timePoint.startDate,
+        end: timePoint.endDate
+      };
 
       if (timePoint.type === 'hour') {
         // Load data for specific hour
