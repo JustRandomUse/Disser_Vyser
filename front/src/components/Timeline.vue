@@ -58,9 +58,6 @@ const emit = defineEmits(['open-calendar', 'time-selected', 'range-selected']);
 const currentPage = ref(1);
 const pointsPerPage = 15;
 const selectedIndex = ref(0);
-const rangeSelectionStart = ref(null);
-const rangeSelectionEnd = ref(null);
-const isSelectingRange = ref(false);
 
 // Watch for date changes and reset pagination
 watch(() => props.date, () => {
@@ -93,41 +90,12 @@ const selectPoint = (index) => {
   const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
   const point = props.timePoints[globalIndex];
 
-  // Shift key for range selection
-  if (window.event && window.event.shiftKey && rangeSelectionStart.value !== null) {
-    // Second point - complete range selection
-    rangeSelectionEnd.value = globalIndex;
-    isSelectingRange.value = true;
-
-    const startIdx = Math.min(rangeSelectionStart.value, rangeSelectionEnd.value);
-    const endIdx = Math.max(rangeSelectionStart.value, rangeSelectionEnd.value);
-
-    emit('range-selected', {
-      start: props.timePoints[startIdx],
-      end: props.timePoints[endIdx],
-      points: props.timePoints.slice(startIdx, endIdx + 1)
-    });
-  } else {
-    // Single point selection or start of range
-    selectedIndex.value = index;
-    rangeSelectionStart.value = globalIndex;
-    rangeSelectionEnd.value = null;
-    isSelectingRange.value = false;
-
-    emit('time-selected', point);
-  }
+  selectedIndex.value = index;
+  emit('time-selected', point);
 };
 
 const isInSelectedRange = (index) => {
-  if (!isSelectingRange.value || rangeSelectionStart.value === null || rangeSelectionEnd.value === null) {
-    return false;
-  }
-
-  const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
-  const startIdx = Math.min(rangeSelectionStart.value, rangeSelectionEnd.value);
-  const endIdx = Math.max(rangeSelectionStart.value, rangeSelectionEnd.value);
-
-  return globalIndex >= startIdx && globalIndex <= endIdx;
+  return false;
 };
 
 const previousPage = () => {
