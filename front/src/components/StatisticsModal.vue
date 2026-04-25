@@ -341,22 +341,39 @@ const renderTimeSeriesChart = () => {
     type: 'value',
     name: formatKey(param) + ' (' + units[param] + ')',
     position: index % 2 === 0 ? 'left' : 'right',
-    offset: Math.floor(index / 2) * 80,
+    offset: Math.floor(index / 2) * 60,
+    nameLocation: 'middle',
+    nameGap: 50,
+    nameTextStyle: {
+      color: colors[param],
+      fontWeight: 'bold',
+      fontSize: 12
+    },
     axisLine: {
+      show: true,
       lineStyle: {
-        color: colors[param]
+        color: colors[param],
+        width: 2
       }
     },
     axisLabel: {
-      color: colors[param]
+      color: colors[param],
+      fontSize: 11
+    },
+    splitLine: {
+      show: index === 0,
+      lineStyle: {
+        color: '#e0e0e0',
+        type: 'dashed'
+      }
     }
   }));
 
-  // Calculate dynamic grid margins
+  // Calculate dynamic grid margins - минимальные отступы
   const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
   const rightAxesCount = Math.floor(selectedParams.value.length / 2);
-  const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
-  const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
+  const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
+  const gridRight = rightAxesCount > 0 ? 60 + (rightAxesCount - 1) * 60 : 60;
 
   const option = {
     title: {
@@ -374,13 +391,19 @@ const renderTimeSeriesChart = () => {
       data: series.map(s => s.name),
       top: 40,
       type: 'scroll',
-      selectedMode: false
+      selectedMode: false,
+      orient: 'vertical',
+      right: 10,
+      top: 80,
+      textStyle: {
+        fontSize: 11
+      }
     },
     grid: {
       left: gridLeft,
-      right: gridRight,
-      bottom: '15%',
-      top: '25%',
+      right: gridRight + 150,
+      bottom: 80,
+      top: 80,
       containLabel: false
     },
     xAxis: {
@@ -388,7 +411,8 @@ const renderTimeSeriesChart = () => {
       data: times,
       boundaryGap: false,
       axisLabel: {
-        rotate: 45
+        rotate: 45,
+        fontSize: 11
       }
     },
     yAxis: yAxisConfig,
@@ -400,20 +424,25 @@ const renderTimeSeriesChart = () => {
         },
         restore: {},
         saveAsImage: {}
-      }
+      },
+      right: 20,
+      top: 10
     },
     dataZoom: [
       {
         type: 'inside',
         start: 0,
-        end: 100
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true
       },
       {
         show: true,
         type: 'slider',
-        top: '90%',
+        bottom: 20,
         start: 0,
-        end: 100
+        end: 100,
+        height: 30
       }
     ]
   };
@@ -502,14 +531,31 @@ const renderInstantChart = () => {
       type: 'value',
       name: formatKey(param) + ' (' + units[param] + ')',
       position: index % 2 === 0 ? 'left' : 'right',
-      offset: Math.floor(index / 2) * 80,
+      offset: Math.floor(index / 2) * 60,
+      nameLocation: 'middle',
+      nameGap: 50,
+      nameTextStyle: {
+        color: colors[param],
+        fontWeight: 'bold',
+        fontSize: 12
+      },
       axisLine: {
+        show: true,
         lineStyle: {
-          color: colors[param]
+          color: colors[param],
+          width: 2
         }
       },
       axisLabel: {
-        color: colors[param]
+        color: colors[param],
+        fontSize: 11
+      },
+      splitLine: {
+        show: index === 0,
+        lineStyle: {
+          color: '#e0e0e0',
+          type: 'dashed'
+        }
       }
     });
   });
@@ -517,11 +563,11 @@ const renderInstantChart = () => {
   // Use time label for X axis instead of sensor names
   const timeLabel = dateRangeText.value || 'Текущий момент';
 
-  // Calculate dynamic grid margins
+  // Calculate dynamic grid margins - минимальные отступы
   const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
   const rightAxesCount = Math.floor(selectedParams.value.length / 2);
-  const gridLeft = leftAxesCount > 1 ? `${10 + (leftAxesCount - 1) * 8}%` : '10%';
-  const gridRight = rightAxesCount > 0 ? `${10 + rightAxesCount * 8}%` : '10%';
+  const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
+  const gridRight = rightAxesCount > 0 ? 60 + (rightAxesCount - 1) * 60 : 60;
 
   const option = {
     title: {
@@ -538,13 +584,19 @@ const renderInstantChart = () => {
     legend: {
       data: selectedParams.value.map(p => formatKey(p)),
       top: 40,
-      selectedMode: false
+      selectedMode: false,
+      orient: 'vertical',
+      right: 10,
+      top: 80,
+      textStyle: {
+        fontSize: 11
+      }
     },
     grid: {
       left: gridLeft,
-      right: gridRight,
-      bottom: '15%',
-      top: '25%',
+      right: gridRight + 150,
+      bottom: 80,
+      top: 80,
       containLabel: false
     },
     xAxis: {
@@ -553,7 +605,8 @@ const renderInstantChart = () => {
       boundaryGap: false,
       axisLabel: {
         rotate: 0,
-        interval: 0
+        interval: 0,
+        fontSize: 11
       }
     },
     yAxis: yAxisConfig,
@@ -565,20 +618,25 @@ const renderInstantChart = () => {
         },
         restore: {},
         saveAsImage: {}
-      }
+      },
+      right: 20,
+      top: 10
     },
     dataZoom: [
       {
         type: 'inside',
         start: 0,
-        end: 100
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true
       },
       {
         show: true,
         type: 'slider',
-        top: '90%',
+        bottom: 20,
         start: 0,
-        end: 100
+        end: 100,
+        height: 30
       }
     ]
   };
@@ -656,14 +714,13 @@ onBeforeUnmount(() => {
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 1400px;
-  width: 90vw;
-  max-height: 90vh;
+  border-radius: 0;
+  padding: 20px;
+  width: 100vw;
+  height: 100vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
 .close-btn {
@@ -745,7 +802,8 @@ h3 {
 
 .chart {
   width: 100%;
-  height: 600px;
+  height: calc(100vh - 300px);
+  min-height: 500px;
 }
 
 .parameter-selector {
