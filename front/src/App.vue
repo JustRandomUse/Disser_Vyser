@@ -28,8 +28,8 @@
       :isOpen="isModalOpen"
       :sensorData="selectedSensor"
       :timeSeriesData="sensorTimeSeriesData"
-      :dateRange="selectedDateRange"
-      :rangeType="selectionMode === 'range' ? timelineScale : (selectedTimePoint ? selectedTimePoint.type : 'instant')"
+      :dateRange="sensorModalDateRange"
+      :rangeType="sensorModalRangeType"
       @close="closeModal"
     />
     <SidePanel
@@ -92,6 +92,8 @@ export default {
     const timelineScale = ref('hour');
     const timeSeriesData = ref([]);
     const sensorTimeSeriesData = ref([]); // Time series data for single sensor modal
+    const sensorModalDateRange = ref(null); // Date range specifically for sensor modal
+    const sensorModalRangeType = ref('instant'); // Range type for sensor modal
     const statisticsDateRange = ref(null);
     const statisticsRangeType = ref('instant');
     let autoRefreshInterval = null;
@@ -293,37 +295,46 @@ export default {
     const openModal = async (sensorData) => {
       selectedSensor.value = sensorData;
 
-      // Load time series data for the sensor if a time range is selected
+      // Determine date range and range type for sensor modal
+      let startDate, endDate, rangeType, interval;
+
       if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
-        const rangeType = selectionMode.value === 'range' ? timelineScale.value : (selectedTimePoint.value ? selectedTimePoint.value.type : 'instant');
-
-        // Skip loading for instant mode without specific time point
-        if (rangeType !== 'instant') {
-          try {
-            // Determine interval based on rangeType
-            let interval = 'hour';
-            if (rangeType === 'day') interval = 'day';
-            else if (rangeType === 'month') interval = 'month';
-            else if (rangeType === 'year') interval = 'month';
-
-            const data = await fetchTimeSeriesData(
-              selectedDateRange.value.start,
-              selectedDateRange.value.end,
-              interval,
-              [sensorData.id],
-              null
-            );
-
-            console.log('Loaded time series data for sensor modal:', data);
-            sensorTimeSeriesData.value = data;
-          } catch (error) {
-            console.error('Failed to load sensor time series data:', error);
-            sensorTimeSeriesData.value = [];
-          }
-        } else {
-          sensorTimeSeriesData.value = [];
-        }
+        // User selected a range on timeline - use it
+        startDate = selectedDateRange.value.start;
+        endDate = selectedDateRange.value.end;
+        rangeType = selectionMode.value === 'range' ? timelineScale.value : (selectedTimePoint.value ? selectedTimePoint.value.type : 'hour');
       } else {
+        // No timeline selection - fallback to current day with hourly breakdown
+        const currentDate = selectedDate.value || new Date();
+        startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0);
+        endDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
+        rangeType = 'hour';
+      }
+
+      // Store for passing to SensorModal
+      sensorModalDateRange.value = { start: startDate, end: endDate };
+      sensorModalRangeType.value = rangeType;
+
+      // Determine interval based on rangeType
+      if (rangeType === 'hour') interval = 'hour';
+      else if (rangeType === 'day') interval = 'day';
+      else if (rangeType === 'month') interval = 'month';
+      else if (rangeType === 'year') interval = 'month';
+      else interval = 'hour'; // fallback
+
+      try {
+        const data = await fetchTimeSeriesData(
+          startDate,
+          endDate,
+          interval,
+          [sensorData.id],
+          null
+        );
+
+        console.log('Loaded time series data for sensor modal:', data);
+        sensorTimeSeriesData.value = data;
+      } catch (error) {
+        console.error('Failed to load sensor time series data:', error);
         sensorTimeSeriesData.value = [];
       }
 
@@ -582,6 +593,8 @@ export default {
       timePoints,
       timeSeriesData,
       sensorTimeSeriesData,
+      sensorModalDateRange,
+      sensorModalRangeType,
       statisticsDateRange,
       statisticsRangeType,
       selectionMode,

@@ -146,10 +146,6 @@ const statistics = computed(() => {
 });
 
 const dateRangeText = computed(() => {
-  if (props.rangeType === 'instant') {
-    return null;
-  }
-
   if (!props.dateRange || !props.dateRange.start || !props.dateRange.end) {
     return null;
   }
@@ -158,6 +154,10 @@ const dateRangeText = computed(() => {
   const end = new Date(props.dateRange.end);
 
   if (props.rangeType === 'hour') {
+    // Check if it's the same day (current day scenario)
+    if (start.toDateString() === end.toDateString()) {
+      return `Период: ${start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} (сутки)`;
+    }
     return `Период: ${start.toLocaleDateString('ru-RU')} ${start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
   } else if (props.rangeType === 'day') {
     return `Период: ${start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} - ${end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}`;
