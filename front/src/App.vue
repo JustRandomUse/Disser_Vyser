@@ -58,7 +58,7 @@ import SensorModal from './components/SensorModal.vue';
 import SidePanel from './components/SidePanel.vue';
 import StatisticsModal from './components/StatisticsModal.vue';
 import { fetchAirQualityData, fetchAggregatedData, fetchTimeSeriesData, fetchAverageData } from './services/api';
-import { formatDayShortISO, formatMonthISO, formatYear } from './utils/dateFormat';
+import { formatDateISO, formatMonthISO, formatYear } from './utils/dateFormat';
 
 export default {
   name: 'App',
@@ -148,7 +148,7 @@ export default {
 
           points.push({
             type: 'day',
-            time: formatDayShortISO(current),
+            time: formatDateISO(current),
             color: '#5DADE2',
             startDate: new Date(pointStart),
             endDate: new Date(pointEnd)
