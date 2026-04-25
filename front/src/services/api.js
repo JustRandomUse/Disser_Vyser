@@ -275,13 +275,18 @@ export const fetchTimeSeriesData = async (startDate, endDate, interval = 'hour',
 
         siteTimeSeries[siteId].data.push({
           time: item.time,
-          pm25: item['p-pm2'] || 0,
-          pm10: item['p-pm10'] || 0,
+          pm25: item['p-pm2'] !== undefined && item['p-pm2'] !== null ? item['p-pm2'] : null,
+          pm10: item['p-pm10'] !== undefined && item['p-pm10'] !== null ? item['p-pm10'] : null,
           temperature: getValidValue(sensorName, 'temperature', item['m-t']),
           humidity: getValidValue(sensorName, 'humidity', item['m-h']),
           pressure: getValidValue(sensorName, 'pressure', item['m-p']),
-          aqi: item.iaqi || 0
+          aqi: item.iaqi !== undefined && item.iaqi !== null ? item.iaqi : null
         });
+      });
+
+      // Sort data by time for each site
+      Object.values(siteTimeSeries).forEach(site => {
+        site.data.sort((a, b) => new Date(a.time) - new Date(b.time));
       });
 
       return Object.values(siteTimeSeries);

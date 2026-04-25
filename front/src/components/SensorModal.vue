@@ -91,8 +91,8 @@ const selectedParams = ref(['pm25']); // Array of selected parameters
 const measurements = computed(() => {
   const data = props.sensorData;
   return {
-    pm25: data.pm25 || 0,
-    pm10: data.pm10 || 0,
+    pm25: data.pm25,
+    pm10: data.pm10,
     temperature: data.temperature,
     humidity: data.humidity,
     pressure: data.pressure
@@ -106,8 +106,8 @@ const chartData = computed(() => {
     if (sensorData.data && sensorData.data.length > 0) {
       return sensorData.data.map(point => ({
         date: point.time,
-        pm25: point.pm25 || 0,
-        pm10: point.pm10 || 0,
+        pm25: point.pm25,
+        pm10: point.pm10,
         temperature: point.temperature,
         humidity: point.humidity,
         pressure: point.pressure
@@ -478,10 +478,15 @@ const renderComparisonChart = () => {
     }));
 
   // Формируем легенду с текущими средними значениями
-  const legendData = selectedParams.value.map(param => {
-    const stat = statistics.value[param];
-    return `${formatKey(param)}: ${stat.avg} ${units[param]}`;
-  });
+  const legendData = selectedParams.value
+    .filter(param => normalizedData[param] && normalizedData[param].length > 0)
+    .map(param => {
+      const stat = statistics.value[param];
+      if (stat && stat.avg !== undefined) {
+        return `${formatKey(param)}: ${stat.avg} ${units[param]}`;
+      }
+      return formatKey(param);
+    });
 
   const gridLeft = 60;
   const gridRight = 200;
