@@ -434,66 +434,87 @@ const renderComparisonChart = () => {
     pressure: 'гПа'
   };
 
-  // Нормализация данных для каждого параметра (0-100%)
-  const normalizedData = {};
-  const ranges = {};
+  // Build series with real values (no normalization)
+  const series = [];
+  const yAxisConfig = [];
+  const validParams = [];
 
-  selectedParams.value.forEach(param => {
-    const values = data.map(d => d[param]).filter(v => isValidMetricValue(v));
+  selectedParams.value.forEach((param, index) => {
+    // Get valid data points for this parameter
+    const validPoints = data
+      .map(d => [d.date, d[param]])
+      .filter(([date, val]) => isValidMetricValue(val));
 
-    if (values.length === 0) {
+    if (validPoints.length === 0) {
       return; // Skip params with no valid data
     }
 
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    ranges[param] = { min, max, range: max - min };
+    validParams.push(param);
 
-    normalizedData[param] = data.map(d => {
-      if (!isValidMetricValue(d[param])) {
-        return null; // Skip invalid values
-      }
-      const normalized = ranges[param].range > 0
-        ? ((d[param] - min) / ranges[param].range) * 100
-        : 50;
-      return [d.date, normalized];
-    }).filter(item => item !== null);
-  });
-
-  // Создаем серии с нормализованными данными
-  const series = selectedParams.value
-    .filter(param => normalizedData[param] && normalizedData[param].length > 0)
-    .map((param) => ({
+    // Create series with real values
+    series.push({
       name: formatKey(param),
       type: 'line',
       smooth: true,
-      yAxisIndex: 0,
-      data: normalizedData[param],
+      yAxisIndex: index,
+      data: validPoints,
       itemStyle: {
         color: colors[param]
       },
       lineStyle: {
         width: 2
       }
-    }));
-
-  // Формируем легенду с текущими средними значениями
-  const legendData = selectedParams.value
-    .filter(param => normalizedData[param] && normalizedData[param].length > 0)
-    .map(param => {
-      const stat = statistics.value[param];
-      if (stat && stat.avg !== undefined) {
-        return `${formatKey(param)}: ${stat.avg} ${units[param]}`;
-      }
-      return formatKey(param);
     });
 
-  const gridLeft = 60;
-  const gridRight = 200;
+    // Create yAxis for this parameter
+    yAxisConfig.push({
+      type: 'value',
+      name: `${formatKey(param)} (${units[param]})`,
+      position: index % 2 === 0 ? 'left' : 'right',
+      offset: Math.floor(index / 2) * 60,
+      nameLocation: 'middle',
+      nameGap: 50,
+      nameTextStyle: {
+        color: colors[param],
+        fontWeight: 'bold',
+        fontSize: 12
+      },
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: colors[param],
+          width: 2
+        }
+      },
+      axisLabel: {
+        color: colors[param],
+        fontSize: 11
+      },
+      splitLine: {
+        show: index === 0,
+        lineStyle: {
+          color: '#e0e0e0',
+          type: 'dashed'
+        }
+      }
+    });
+  });
+
+  // If no valid params, show empty state
+  if (validParams.length === 0) {
+    mainChartInstance.value = null;
+    return;
+  }
+
+  // Calculate dynamic grid margins
+  const leftAxesCount = Math.ceil(validParams.length / 2);
+  const rightAxesCount = Math.floor(validParams.length / 2);
+  const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
+  const gridRight = rightAxesCount > 0 ? 60 + (rightAxesCount - 1) * 60 : 60;
 
   const option = {
     title: {
-      text: 'Сравнение параметров (нормализовано)',
+      text: 'Сравнение параметров',
       left: 'center',
       top: 10
     },
@@ -505,16 +526,16 @@ const renderComparisonChart = () => {
       formatter: function(params) {
         let result = params[0].axisValueLabel + '<br/>';
         params.forEach(item => {
-          const param = selectedParams.value[item.seriesIndex];
-          const normalizedValue = item.value[1];
-          const originalValue = ranges[param].min + (normalizedValue / 100) * ranges[param].range;
-          result += `${item.marker} ${item.seriesName}: ${originalValue.toFixed(1)} ${units[param]}<br/>`;
+          const value = item.value[1];
+          const paramIndex = item.seriesIndex;
+          const param = validParams[paramIndex];
+          result += `${item.marker} ${item.seriesName}: ${value.toFixed(1)} ${units[param]}<br/>`;
         });
         return result;
       }
     },
     legend: {
-      data: legendData,
+      data: validParams.map(p => formatKey(p)),
       top: 40,
       selectedMode: false,
       orient: 'vertical',
@@ -526,7 +547,7 @@ const renderComparisonChart = () => {
     },
     grid: {
       left: gridLeft,
-      right: gridRight,
+      right: gridRight + 150,
       bottom: 60,
       top: 80,
       containLabel: false
@@ -538,25 +559,7 @@ const renderComparisonChart = () => {
         fontSize: 11
       }
     },
-    yAxis: {
-      type: 'value',
-      name: 'Нормализовано (%)',
-      nameLocation: 'middle',
-      nameGap: 50,
-      min: 0,
-      max: 100,
-      axisLabel: {
-        formatter: '{value}%',
-        fontSize: 11
-      },
-      splitLine: {
-        show: true,
-        lineStyle: {
-          color: '#e0e0e0',
-          type: 'dashed'
-        }
-      }
-    },
+    yAxis: yAxisConfig,
     toolbox: {
       feature: {
         restore: {},
