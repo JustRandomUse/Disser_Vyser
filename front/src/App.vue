@@ -27,6 +27,7 @@
     <SensorModal
       :isOpen="isModalOpen"
       :sensorData="selectedSensor"
+      :timeSeriesData="sensorTimeSeriesData"
       :dateRange="selectedDateRange"
       :rangeType="selectionMode === 'range' ? timelineScale : (selectedTimePoint ? selectedTimePoint.type : 'instant')"
       @close="closeModal"
@@ -90,6 +91,7 @@ export default {
     const rangeEnd = ref(null);
     const timelineScale = ref('hour');
     const timeSeriesData = ref([]);
+    const sensorTimeSeriesData = ref([]); // Time series data for single sensor modal
     const statisticsDateRange = ref(null);
     const statisticsRangeType = ref('instant');
     let autoRefreshInterval = null;
@@ -288,8 +290,43 @@ export default {
       }
     };
 
-    const openModal = (sensorData) => {
+    const openModal = async (sensorData) => {
       selectedSensor.value = sensorData;
+
+      // Load time series data for the sensor if a time range is selected
+      if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
+        const rangeType = selectionMode.value === 'range' ? timelineScale.value : (selectedTimePoint.value ? selectedTimePoint.value.type : 'instant');
+
+        // Skip loading for instant mode without specific time point
+        if (rangeType !== 'instant') {
+          try {
+            // Determine interval based on rangeType
+            let interval = 'hour';
+            if (rangeType === 'day') interval = 'day';
+            else if (rangeType === 'month') interval = 'month';
+            else if (rangeType === 'year') interval = 'month';
+
+            const data = await fetchTimeSeriesData(
+              selectedDateRange.value.start,
+              selectedDateRange.value.end,
+              interval,
+              [sensorData.id],
+              null
+            );
+
+            console.log('Loaded time series data for sensor modal:', data);
+            sensorTimeSeriesData.value = data;
+          } catch (error) {
+            console.error('Failed to load sensor time series data:', error);
+            sensorTimeSeriesData.value = [];
+          }
+        } else {
+          sensorTimeSeriesData.value = [];
+        }
+      } else {
+        sensorTimeSeriesData.value = [];
+      }
+
       isModalOpen.value = true;
     };
 
@@ -544,6 +581,7 @@ export default {
       selectedTimePoint,
       timePoints,
       timeSeriesData,
+      sensorTimeSeriesData,
       statisticsDateRange,
       statisticsRangeType,
       selectionMode,

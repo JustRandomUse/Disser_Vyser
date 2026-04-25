@@ -17,9 +17,12 @@
       </div>
 
       <div class="chart-container">
-        <div ref="mainChart" class="chart"></div>
+        <div v-if="chartData.length > 0 && selectedParams.length > 0" ref="mainChart" class="chart"></div>
         <p v-if="selectedParams.length === 0" class="no-selection">
           Выберите параметры для отображения
+        </p>
+        <p v-if="selectedParams.length > 0 && chartData.length === 0" class="no-data">
+          Нет данных за выбранный период
         </p>
         <p v-if="dateRangeText" class="date-range-info">{{ dateRangeText }}</p>
       </div>
@@ -54,7 +57,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
-import { fetchTimeSeriesData } from '../services/api';
 
 const props = defineProps({
   isOpen: {
@@ -64,6 +66,10 @@ const props = defineProps({
   sensorData: {
     type: Object,
     default: () => ({})
+  },
+  timeSeriesData: {
+    type: Array,
+    default: () => []
   },
   dateRange: {
     type: Object,
@@ -80,7 +86,6 @@ const emit = defineEmits(['close']);
 const mainChart = ref(null);
 const mainChartInstance = ref(null);
 const selectedParams = ref(['pm25']); // Array of selected parameters
-const realTimeSeriesData = ref(null); // Реальные данные из API
 
 const measurements = computed(() => {
   const data = props.sensorData;
@@ -93,29 +98,60 @@ const measurements = computed(() => {
   };
 });
 
+// Get chart data from timeSeriesData prop (real API data)
+const chartData = computed(() => {
+  if (props.timeSeriesData && props.timeSeriesData.length > 0) {
+    const sensorData = props.timeSeriesData[0];
+    if (sensorData.data && sensorData.data.length > 0) {
+      return sensorData.data.map(point => ({
+        date: point.time,
+        pm25: point.pm25 || 0,
+        pm10: point.pm10 || 0,
+        temperature: point.temperature || 0,
+        humidity: point.humidity || 0,
+        pressure: point.pressure || 0
+      }));
+    }
+  }
+  return [];
+});
+
 const statistics = computed(() => {
-  const data = generateTimeSeriesData();
+  const data = chartData.value;
+
+  // If no data available, return empty stats
+  if (data.length === 0) {
+    return {};
+  }
+
   const stats = {};
 
   Object.keys(measurements.value).forEach(param => {
-    const values = data.map(d => d[param]);
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const values = data.map(d => d[param]).filter(v => v > 0);
 
-    stats[param] = {
-      avg: Math.round(avg * 10) / 10,
-      min: Math.round(min * 10) / 10,
-      max: Math.round(max * 10) / 10
-    };
+    if (values.length > 0) {
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+
+      stats[param] = {
+        avg: Math.round(avg * 10) / 10,
+        min: Math.round(min * 10) / 10,
+        max: Math.round(max * 10) / 10
+      };
+    }
   });
 
   return stats;
 });
 
 const dateRangeText = computed(() => {
-  if (!props.dateRange || props.rangeType === 'instant') {
-    return 'Последние 24 часа (сгенерированные данные)';
+  if (props.rangeType === 'instant') {
+    return null;
+  }
+
+  if (!props.dateRange || !props.dateRange.start || !props.dateRange.end) {
+    return null;
   }
 
   const start = new Date(props.dateRange.start);
@@ -169,94 +205,6 @@ const toggleParam = (key) => {
   }
 };
 
-// Загрузка реальных данных из API
-const loadRealTimeSeriesData = async () => {
-  if (!props.dateRange || !props.sensorData.id) {
-    realTimeSeriesData.value = null;
-    return;
-  }
-
-  // Skip loading for instant mode without a specific time point
-  if (props.rangeType === 'instant') {
-    realTimeSeriesData.value = null;
-    return;
-  }
-
-  try {
-    // Определяем интервал на основе rangeType
-    let interval = 'hour';
-    if (props.rangeType === 'day') interval = 'day';
-    else if (props.rangeType === 'month') interval = 'month';
-    else if (props.rangeType === 'year') interval = 'month';
-
-    const data = await fetchTimeSeriesData(
-      props.dateRange.start,
-      props.dateRange.end,
-      interval,
-      [props.sensorData.id],
-      null
-    );
-
-    console.log('Loaded real time series data for sensor:', data);
-    realTimeSeriesData.value = data;
-  } catch (error) {
-    console.error('Failed to load real time series data:', error);
-    realTimeSeriesData.value = null;
-  }
-};
-
-const generateTimeSeriesData = () => {
-  // Если есть реальные данные из API - используем их
-  if (realTimeSeriesData.value && realTimeSeriesData.value.length > 0) {
-    const sensorData = realTimeSeriesData.value[0];
-    if (sensorData.data && sensorData.data.length > 0) {
-      return sensorData.data.map(point => ({
-        date: point.time,
-        pm25: point.pm25 || 0,
-        pm10: point.pm10 || 0,
-        temperature: point.temperature || 0,
-        humidity: point.humidity || 0,
-        pressure: point.pressure || 0
-      }));
-    }
-  }
-
-  // Иначе генерируем фейковые данные (как раньше)
-  const data = [];
-  const now = new Date();
-
-  for (let i = 0; i < 24; i++) {
-    const date = new Date(now.getTime() - (24 - i) * 3600000);
-    const hour = date.getHours();
-
-    const basePM25 = 30 + Math.sin(i / 12) * 20 + Math.random() * 15;
-    const pm25 = Math.max(0, basePM25 + (hour >= 7 && hour <= 9 ? 20 : 0) + (hour >= 17 && hour <= 19 ? 25 : 0));
-
-    const basePM10 = pm25 * 1.5 + Math.random() * 10;
-    const pm10 = Math.max(0, basePM10);
-
-    const baseTemp = 15 + Math.sin(i / 24 * Math.PI * 2) * 8 + Math.random() * 3;
-    const temperature = Math.round(baseTemp * 10) / 10;
-
-    const baseHumidity = 60 + Math.sin(i / 24 * Math.PI * 2) * 15 + Math.random() * 10;
-    const humidity = Math.max(30, Math.min(90, Math.round(baseHumidity)));
-
-    const basePressure = 1013 + Math.sin(i / 48 * Math.PI * 2) * 5 + Math.random() * 3;
-    const pressure = Math.round(basePressure * 10) / 10;
-
-    data.push({
-      date: date.toISOString(),
-      pm25: Math.round(pm25 * 10) / 10,
-      pm10: Math.round(pm10 * 10) / 10,
-      temperature: temperature,
-      humidity: humidity,
-      pressure: pressure
-    });
-  }
-
-  return data;
-};
-
 const renderChart = () => {
   if (selectedParams.value.length === 0) {
     if (mainChartInstance.value) {
@@ -280,9 +228,16 @@ const renderSingleParamChart = () => {
     mainChartInstance.value.dispose();
   }
 
+  const data = chartData.value;
+
+  // If no data, show empty state
+  if (data.length === 0) {
+    mainChartInstance.value = null;
+    return;
+  }
+
   mainChartInstance.value = echarts.init(mainChart.value);
 
-  const data = generateTimeSeriesData();
   const param = selectedParams.value[0]; // First selected parameter
 
   const colors = {
@@ -293,7 +248,13 @@ const renderSingleParamChart = () => {
     pressure: '#9966ff'
   };
 
-  const values = data.map(d => d[param]);
+  const values = data.map(d => d[param]).filter(v => v > 0);
+
+  if (values.length === 0) {
+    mainChartInstance.value = null;
+    return;
+  }
+
   const avg = values.reduce((a, b) => a + b, 0) / values.length;
 
   const option = {
@@ -446,8 +407,15 @@ const renderComparisonChart = () => {
     mainChartInstance.value.dispose();
   }
 
+  const data = chartData.value;
+
+  // If no data, show empty state
+  if (data.length === 0) {
+    mainChartInstance.value = null;
+    return;
+  }
+
   mainChartInstance.value = echarts.init(mainChart.value);
-  const data = generateTimeSeriesData();
 
   const colors = {
     pm25: '#ff6384',
@@ -607,11 +575,8 @@ const renderCharts = () => {
   });
 };
 
-watch(() => props.isOpen, async (newVal) => {
+watch(() => props.isOpen, (newVal) => {
   if (newVal) {
-    // Загружаем реальные данные если выбран период
-    await loadRealTimeSeriesData();
-
     nextTick(() => {
       // Small delay to ensure modal container has final size
       setTimeout(() => {
@@ -621,10 +586,9 @@ watch(() => props.isOpen, async (newVal) => {
   }
 });
 
-// Watch для изменения периода
-watch(() => [props.dateRange, props.rangeType], async () => {
+// Watch for timeSeriesData changes
+watch(() => props.timeSeriesData, () => {
   if (props.isOpen) {
-    await loadRealTimeSeriesData();
     nextTick(() => {
       renderChart();
     });
@@ -744,6 +708,14 @@ h3 {
   color: #999;
   padding: 40px;
   font-style: italic;
+}
+
+.no-data {
+  text-align: center;
+  color: #e74c3c;
+  padding: 40px;
+  font-style: italic;
+  font-weight: 500;
 }
 
 .date-range-info {
