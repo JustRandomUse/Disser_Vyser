@@ -381,64 +381,51 @@ const renderComparisonChart = () => {
     pressure: 'гПа'
   };
 
-  const yAxisConfig = selectedParams.value.map((param, index) => ({
-    type: 'value',
-    name: formatKey(param) + ' (' + units[param] + ')',
-    position: index % 2 === 0 ? 'left' : 'right',
-    offset: Math.floor(index / 2) * 60,
-    nameLocation: 'middle',
-    nameGap: 50,
-    nameTextStyle: {
-      color: colors[param],
-      fontWeight: 'bold',
-      fontSize: 12
-    },
-    axisLine: {
-      show: true,
-      lineStyle: {
-        color: colors[param],
-        width: 2
-      }
-    },
-    axisLabel: {
-      color: colors[param],
-      fontSize: 11
-    },
-    splitLine: {
-      show: index === 0,
-      lineStyle: {
-        color: '#e0e0e0',
-        type: 'dashed'
-      }
-    }
-  }));
+  // Нормализация данных для каждого параметра (0-100%)
+  const normalizedData = {};
+  const ranges = {};
 
-  const series = selectedParams.value.map((param, index) => ({
+  selectedParams.value.forEach(param => {
+    const values = data.map(d => d[param]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    ranges[param] = { min, max, range: max - min };
+
+    normalizedData[param] = data.map(d => {
+      const normalized = ranges[param].range > 0
+        ? ((d[param] - min) / ranges[param].range) * 100
+        : 50;
+      return [d.date, normalized];
+    });
+  });
+
+  // Создаем серии с нормализованными данными
+  const series = selectedParams.value.map((param) => ({
     name: formatKey(param),
     type: 'line',
     smooth: true,
-    yAxisIndex: index,
-    data: data.map(d => [d.date, d[param]]),
+    yAxisIndex: 0,
+    data: normalizedData[param],
     itemStyle: {
       color: colors[param]
     },
-    areaStyle: {
-      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: colors[param] + '4D' },
-        { offset: 1, color: colors[param] + '0D' }
-      ])
+    lineStyle: {
+      width: 2
     }
   }));
 
-  // Calculate dynamic grid margins based on number of axes
-  const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
-  const rightAxesCount = Math.floor(selectedParams.value.length / 2);
-  const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
-  const gridRight = 200; // Фиксированный отступ справа для легенды
+  // Формируем легенду с текущими средними значениями
+  const legendData = selectedParams.value.map(param => {
+    const stat = statistics.value[param];
+    return `${formatKey(param)}: ${stat.avg} ${units[param]}`;
+  });
+
+  const gridLeft = 60;
+  const gridRight = 200;
 
   const option = {
     title: {
-      text: 'Сравнение параметров',
+      text: 'Сравнение параметров (нормализовано)',
       left: 'center',
       top: 10
     },
@@ -446,10 +433,20 @@ const renderComparisonChart = () => {
       trigger: 'axis',
       axisPointer: {
         type: 'cross'
+      },
+      formatter: function(params) {
+        let result = params[0].axisValueLabel + '<br/>';
+        params.forEach(item => {
+          const param = selectedParams.value[item.seriesIndex];
+          const normalizedValue = item.value[1];
+          const originalValue = ranges[param].min + (normalizedValue / 100) * ranges[param].range;
+          result += `${item.marker} ${item.seriesName}: ${originalValue.toFixed(1)} ${units[param]}<br/>`;
+        });
+        return result;
       }
     },
     legend: {
-      data: selectedParams.value.map(p => formatKey(p)),
+      data: legendData,
       top: 40,
       selectedMode: false,
       orient: 'vertical',
@@ -473,7 +470,25 @@ const renderComparisonChart = () => {
         fontSize: 11
       }
     },
-    yAxis: yAxisConfig,
+    yAxis: {
+      type: 'value',
+      name: 'Нормализовано (%)',
+      nameLocation: 'middle',
+      nameGap: 50,
+      min: 0,
+      max: 100,
+      axisLabel: {
+        formatter: '{value}%',
+        fontSize: 11
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#e0e0e0',
+          type: 'dashed'
+        }
+      }
+    },
     toolbox: {
       feature: {
         restore: {},
