@@ -320,11 +320,16 @@ const renderTimeSeriesChart = () => {
 
   if (props.showIndividual) {
     // Show individual lines for each sensor
+    console.log('  Mode: Individual lines for each sensor');
     selectedParams.value.forEach(param => {
-      props.timeSeriesData.forEach(site => {
+      console.log(`  Processing param: ${param}`);
+      props.timeSeriesData.forEach((site, index) => {
+        console.log(`    Site ${index}: ${site.name}, data points: ${site.data?.length}`);
         const validData = site.data
           .map(d => d[param]) // Return just the value, not [time, value]
           .filter(val => isValidMetricValue(val));
+
+        console.log(`    Valid data points for ${param}: ${validData.length}`);
 
         if (validData.length > 0) {
           series.push({
@@ -337,11 +342,13 @@ const renderTimeSeriesChart = () => {
             },
             yAxisIndex: selectedParams.value.indexOf(param)
           });
+          console.log(`    ✅ Added series: ${site.name} - ${formatKey(param)}`);
         }
       });
     });
   } else {
     // Show averaged lines for each parameter
+    console.log('  Mode: Averaged line');
     selectedParams.value.forEach(param => {
       // Get all time points from first site
       const timePoints = props.timeSeriesData[0]?.data.map(d => d.time) || [];
