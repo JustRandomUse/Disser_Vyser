@@ -53,7 +53,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import MapView from './components/MapView.vue';
 import Legend from './components/Legend.vue';
 import Timeline from './components/Timeline.vue';
