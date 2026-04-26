@@ -50,6 +50,13 @@
         </div>
       </div>
 
+      <div class="date-section">
+        <label>Период для статистики:</label>
+        <button @click="isCalendarOpen = true" class="date-select-btn">
+          {{ dateRangeText }}
+        </button>
+      </div>
+
       <button
         class="show-stats-btn"
         :disabled="selectedSensors.length === 0"
@@ -58,12 +65,22 @@
         Показать статистику ({{ selectedSensors.length }})
       </button>
     </div>
+
+    <Calendar
+      :isOpen="isCalendarOpen"
+      :selectedDate="selectedDate"
+      @date-selected="onDateSelected"
+      @date-range-selected="onDateRangeSelected"
+      @close="isCalendarOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { getAvailableDistricts, groupSensorsByDistrict, validateDistrictMapping } from '../utils/districtMapping';
+import Calendar from './Calendar.vue';
+import { formatDateISO, formatDateRangeISO } from '../utils/dateFormat';
 
 const props = defineProps({
   sensors: {
@@ -79,6 +96,16 @@ const selectedPreset = ref('');
 const selectedSensors = ref([]);
 const availableDistricts = ref([]);
 const sensorsByDistrict = ref(new Map());
+const isCalendarOpen = ref(false);
+const selectedDate = ref(new Date());
+const selectedDateRange = ref(null);
+
+const dateRangeText = computed(() => {
+  if (selectedDateRange.value) {
+    return formatDateRangeISO(selectedDateRange.value.start, selectedDateRange.value.end);
+  }
+  return formatDateISO(selectedDate.value);
+});
 
 const allSelected = computed(() => {
   return props.sensors.length > 0 && selectedSensors.value.length === props.sensors.length;
@@ -136,7 +163,18 @@ const applyPreset = () => {
 
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
-  emit('show-statistics', selected, selectedPreset.value);
+  emit('show-statistics', selected, selectedPreset.value, selectedDateRange.value);
+};
+
+const onDateSelected = (date) => {
+  selectedDate.value = date;
+  selectedDateRange.value = null;
+  isCalendarOpen.value = false;
+};
+
+const onDateRangeSelected = (range) => {
+  selectedDateRange.value = range;
+  isCalendarOpen.value = false;
 };
 
 // Watch for sensor changes only on initial load
@@ -309,5 +347,33 @@ input[type="checkbox"] {
 .show-stats-btn:disabled {
   background: #9ca3af;
   cursor: not-allowed;
+}
+
+.date-section {
+  margin-bottom: 20px;
+}
+
+.date-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.date-select-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s;
+}
+
+.date-select-btn:hover {
+  border-color: #3b82f6;
 }
 </style>

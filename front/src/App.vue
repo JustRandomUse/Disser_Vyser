@@ -628,7 +628,7 @@ export default {
       }
     };
 
-    const openStatisticsModal = async (selectedSensors, districtKey) => {
+    const openStatisticsModal = async (selectedSensors, districtKey, dateRange) => {
       // Map selected sensor IDs to full sensor objects from baseSensors
       selectedSensorsForStats.value = selectedSensors.map(s => {
         const baseSensor = baseSensors.value.find(bs => bs.id === s.id);
@@ -647,25 +647,36 @@ export default {
         };
       });
 
-      // If in range mode, load time series data
-      if (selectionMode.value === 'range' && selectedDateRange.value) {
-        const siteIds = selectedSensors.map(s => s.id);
+      // Use dateRange from SidePanel if provided, otherwise use current selection
+      const effectiveDateRange = dateRange || selectedDateRange.value;
+      const siteIds = selectedSensors.map(s => s.id);
 
-        // API supports only 'hour', 'day', 'month' - convert 'year' to 'month'
-        let interval = timelineScale.value || 'hour';
-        if (interval === 'year') interval = 'month';
+      // If we have a date range, load time series data
+      if (effectiveDateRange) {
+        // Determine interval based on date range duration
+        const startDate = new Date(effectiveDateRange.start);
+        const endDate = new Date(effectiveDateRange.end);
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        let interval = 'hour';
+        if (daysDiff > 7) {
+          interval = 'day';
+        }
+        if (daysDiff > 90) {
+          interval = 'month';
+        }
 
         console.log('🔍 ДИАГНОСТИКА openStatisticsModal:');
-        console.log('  selectedDateRange:', selectedDateRange.value);
-        console.log('  timelineScale (UI):', timelineScale.value);
+        console.log('  effectiveDateRange:', effectiveDateRange);
+        console.log('  daysDiff:', daysDiff);
         console.log('  interval (API):', interval);
         console.log('  siteIds:', siteIds);
 
         try {
           // Fetch time series data for selected sensors
           const data = await fetchTimeSeriesData(
-            selectedDateRange.value.start,
-            selectedDateRange.value.end,
+            startDate,
+            endDate,
             interval,
             siteIds,
             null
@@ -678,15 +689,23 @@ export default {
 
           timeSeriesData.value = data;
           statisticsDateRange.value = {
-            start: selectedDateRange.value.start,
-            end: selectedDateRange.value.end
+            start: startDate,
+            end: endDate
           };
-          statisticsRangeType.value = timelineScale.value; // Use original type for UI
+
+          // Determine range type based on interval
+          if (interval === 'hour') {
+            statisticsRangeType.value = 'hour';
+          } else if (interval === 'day') {
+            statisticsRangeType.value = 'day';
+          } else if (interval === 'month') {
+            statisticsRangeType.value = 'month';
+          }
         } catch (error) {
           console.error('❌ Failed to load time series data:', error);
 
-          const startDateStr = selectedDateRange.value.start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
-          const endDateStr = selectedDateRange.value.end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+          const startDateStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+          const endDateStr = endDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
 
           alert(`Ошибка загрузки данных за период ${startDateStr} - ${endDateStr}.\n\nПопробуйте выбрать другой период или обновите страницу.`);
 
