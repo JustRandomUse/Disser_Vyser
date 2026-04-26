@@ -2,7 +2,10 @@ package handler
 
 import (
 	"air-quality-monitor/back/internal/service"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -372,6 +375,92 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 		Data: map[string]string{
 			"status": "healthy",
 			"time":   time.Now().Format(time.RFC3339),
+		},
+	})
+}
+
+// DebugArchiveCheck handles GET /api/debug/archive-check
+func (h *Handler) DebugArchiveCheck(c *gin.Context) {
+	dateStr := c.DefaultQuery("date", "2026-04-01")
+	interval := c.DefaultQuery("interval", "day")
+
+	// Parse date
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Status: "error",
+			Error:  "invalid date format, use YYYY-MM-DD",
+		})
+		return
+	}
+
+	timeBegin := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	timeEnd := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 0, time.UTC)
+
+	// Get API key from environment variable
+	apiKey := os.Getenv("SENSOR_API_KEY")
+	if apiKey == "" {
+		apiKey = "not_configured"
+	}
+
+	apiKeyMasked := "***"
+	if len(apiKey) > 4 {
+		apiKeyMasked = "***" + apiKey[len(apiKey)-4:]
+	}
+
+	// Call service to get data
+	data, err := h.service.GetAggregatedData("knc-air", timeBegin, timeEnd, interval, nil, nil)
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			Status: "success",
+			Data: map[string]interface{}{
+				"api_key_exists":   apiKey != "",
+				"api_key_length":   len(apiKey),
+				"api_key_last4":    apiKeyMasked,
+				"time_begin":       timeBegin.Format(time.RFC3339),
+				"time_end":         timeEnd.Format(time.RFC3339),
+				"interval":         interval,
+				"external_api_url": "http://sensor.krasn.ru/hub/api/3.0/sets/knc-air/data/archive",
+				"error":            err.Error(),
+				"data_length":      0,
+				"first_records":    []interface{}{},
+			},
+		})
+		return
+	}
+
+	// Try to parse data to get length
+	dataLength := 0
+	firstRecords := []interface{}{}
+	rawDataType := fmt.Sprintf("%T", data)
+
+	// Check if data is json.RawMessage
+	if rawMsg, ok := data.(json.RawMessage); ok {
+		var records []map[string]interface{}
+		if err := json.Unmarshal(rawMsg, &records); err == nil {
+			dataLength = len(records)
+			if len(records) > 0 {
+				firstRecords = append(firstRecords, records[0])
+			}
+			if len(records) > 1 {
+				firstRecords = append(firstRecords, records[1])
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Status: "success",
+		Data: map[string]interface{}{
+			"api_key_exists":   apiKey != "",
+			"api_key_length":   len(apiKey),
+			"api_key_last4":    apiKeyMasked,
+			"time_begin":       timeBegin.Format(time.RFC3339),
+			"time_end":         timeEnd.Format(time.RFC3339),
+			"interval":         interval,
+			"external_api_url": "http://sensor.krasn.ru/hub/api/3.0/sets/knc-air/data/archive",
+			"data_length":      dataLength,
+			"data_type":        rawDataType,
+			"first_records":    firstRecords,
 		},
 	})
 }

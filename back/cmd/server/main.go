@@ -53,6 +53,9 @@ func main() {
 		// Health check
 		api.GET("/health", h.HealthCheck)
 
+		// Debug endpoints
+		api.GET("/debug/archive-check", h.DebugArchiveCheck)
+
 		// Datasets
 		api.GET("/datasets", h.GetDataSets)
 		api.GET("/datasets/:code", h.GetDataSetDetail)
