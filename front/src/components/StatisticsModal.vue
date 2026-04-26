@@ -323,8 +323,8 @@ const renderTimeSeriesChart = () => {
     selectedParams.value.forEach(param => {
       props.timeSeriesData.forEach(site => {
         const validData = site.data
-          .map(d => [d.time, d[param]])
-          .filter(([time, val]) => isValidMetricValue(val));
+          .map(d => d[param]) // Return just the value, not [time, value]
+          .filter(val => isValidMetricValue(val));
 
         if (validData.length > 0) {
           series.push({
@@ -357,7 +357,7 @@ const renderTimeSeriesChart = () => {
 
         if (valuesAtTime.length > 0) {
           const avg = valuesAtTime.reduce((a, b) => a + b, 0) / valuesAtTime.length;
-          return [time, avg];
+          return avg; // Return just the value, not [time, value]
         }
         return null;
       }).filter(d => d !== null);
