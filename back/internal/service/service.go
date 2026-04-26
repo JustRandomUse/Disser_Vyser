@@ -6,6 +6,7 @@ import (
 	"air-quality-monitor/back/internal/client"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -26,6 +27,11 @@ func normalizeArchiveInterval(interval string) string {
 	default:
 		return "hour"
 	}
+}
+
+// isCacheDisabled checks if cache is disabled via env variable
+func isCacheDisabled() bool {
+	return os.Getenv("DISABLE_CACHE") == "1"
 }
 
 // NewService creates a new service instance
@@ -119,9 +125,15 @@ func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time
 	interval = normalizeArchiveInterval(interval)
 	cacheKey := fmt.Sprintf("agg:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites, indicators)
 
-	// Check cache
-	if cached, found := s.cache.Get(cacheKey); found {
-		return cached, nil
+	// Check cache only if not disabled
+	if !isCacheDisabled() {
+		if cached, found := s.cache.Get(cacheKey); found {
+			fmt.Printf("📦 Cache HIT for key: %s\n", cacheKey)
+			return cached, nil
+		}
+		fmt.Printf("📦 Cache MISS for key: %s\n", cacheKey)
+	} else {
+		fmt.Println("⚠️  Cache DISABLED via DISABLE_CACHE=1")
 	}
 
 	// Always use external API archive endpoint for aggregated data
@@ -129,24 +141,39 @@ func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time
 	// - hour interval: available for last 30 days
 	// - day interval: available for last 365 days
 	// - month interval: available for entire period
+	fmt.Printf("🌐 Calling external API: setCode=%s, timeBegin=%s, timeEnd=%s, interval=%s, sites=%v\n",
+		setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites)
+
 	data, err := s.client.GetArchiveData(setCode, timeBegin, timeEnd, interval, sites, indicators)
 	if err != nil {
+		fmt.Printf("❌ External API error: %v\n", err)
 		return nil, err
 	}
 
 	result, err := client.ParseAPIResponse(data)
 	if err != nil {
+		fmt.Printf("❌ Parse error: %v\n", err)
 		return nil, err
 	}
 
-	// Cache for longer (historical data doesn't change)
-	duration := timeEnd.Sub(timeBegin)
-	cacheDuration := 30 * time.Minute
-	if duration > 30*24*time.Hour {
-		cacheDuration = 2 * time.Hour
+	// Log result size
+	if rawMsg, ok := result.(json.RawMessage); ok {
+		var dataArray []interface{}
+		if err := json.Unmarshal(rawMsg, &dataArray); err == nil {
+			fmt.Printf("✅ External API returned %d records\n", len(dataArray))
+		}
 	}
 
-	s.cache.Set(cacheKey, result, cacheDuration)
+	// Cache for longer (historical data doesn't change) only if cache not disabled
+	if !isCacheDisabled() {
+		duration := timeEnd.Sub(timeBegin)
+		cacheDuration := 30 * time.Minute
+		if duration > 30*24*time.Hour {
+			cacheDuration = 2 * time.Hour
+		}
+		s.cache.Set(cacheKey, result, cacheDuration)
+	}
+
 	return result, nil
 }
 

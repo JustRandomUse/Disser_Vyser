@@ -212,6 +212,18 @@ const close = () => {
   emit('close');
 };
 
+const endOfDay = (date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+};
+
+const isSameDay = (left, right) => {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+};
+
 const previousMonth = () => {
   if (currentMonth.value === 0) {
     currentMonth.value = 11;
@@ -260,7 +272,7 @@ const selectDate = (day) => {
 
 const selectMonth = (monthData) => {
   const startOfMonth = new Date(monthData.year, monthData.month, 1);
-  const endOfMonth = new Date(monthData.year, monthData.month + 1, 0);
+  const endOfMonth = endOfDay(new Date(monthData.year, monthData.month + 1, 0));
 
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
     // First click - set start only
@@ -271,7 +283,7 @@ const selectMonth = (monthData) => {
     // Second click - set end
     if (startOfMonth < pendingStart.value) {
       // Clicked earlier month - swap
-      const tempEnd = new Date(pendingStart.value.getFullYear(), pendingStart.value.getMonth() + 1, 0);
+      const tempEnd = endOfDay(new Date(pendingStart.value.getFullYear(), pendingStart.value.getMonth() + 1, 0));
       pendingStart.value = startOfMonth;
       pendingEnd.value = tempEnd;
     } else {
@@ -284,7 +296,7 @@ const selectMonth = (monthData) => {
 
 const selectYear = (year) => {
   const startOfYear = new Date(year, 0, 1);
-  const endOfYear = new Date(year, 11, 31);
+  const endOfYear = endOfDay(new Date(year, 11, 31));
 
   if (!pendingStart.value || (pendingStart.value && pendingEnd.value)) {
     // First click - set start only
@@ -295,7 +307,7 @@ const selectYear = (year) => {
     // Second click - set end
     if (startOfYear < pendingStart.value) {
       // Clicked earlier year - swap
-      const tempEnd = new Date(pendingStart.value.getFullYear(), 11, 31);
+      const tempEnd = endOfDay(new Date(pendingStart.value.getFullYear(), 11, 31));
       pendingStart.value = startOfYear;
       pendingEnd.value = tempEnd;
     } else {
@@ -322,7 +334,14 @@ const applySelection = () => {
   if (pendingEnd.value) {
     // Range selected (two clicks)
     startDate.value = pendingStart.value;
-    endDate.value = pendingEnd.value;
+    endDate.value = selectionMode.value === 'day' ? endOfDay(pendingEnd.value) : pendingEnd.value;
+
+    if (selectionMode.value === 'day' && isSameDay(startDate.value, pendingEnd.value)) {
+      emit('date-selected', startDate.value);
+      close();
+      return;
+    }
+
     emit('date-range-selected', {
       start: startDate.value,
       end: endDate.value
@@ -333,7 +352,7 @@ const applySelection = () => {
       // Single year selected - treat as full year range
       const year = pendingStart.value.getFullYear();
       startDate.value = new Date(year, 0, 1);
-      endDate.value = new Date(year, 11, 31);
+      endDate.value = endOfDay(new Date(year, 11, 31));
       emit('date-range-selected', {
         start: startDate.value,
         end: endDate.value
@@ -343,7 +362,7 @@ const applySelection = () => {
       const year = pendingStart.value.getFullYear();
       const month = pendingStart.value.getMonth();
       startDate.value = new Date(year, month, 1);
-      endDate.value = new Date(year, month + 1, 0);
+      endDate.value = endOfDay(new Date(year, month + 1, 0));
       emit('date-range-selected', {
         start: startDate.value,
         end: endDate.value

@@ -52,6 +52,14 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 
 		reqURL := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
 
+		// Log the actual request URL (mask API key for security)
+		maskedURL := reqURL
+		if len(c.apiKey) > 4 {
+			maskedURL = fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
+			maskedURL = fmt.Sprintf("%s (uid=***%s)", maskedURL[:len(maskedURL)-len(c.apiKey)-4], c.apiKey[len(c.apiKey)-4:])
+		}
+		fmt.Printf("🔗 External API Request: %s\n", maskedURL)
+
 		req, err := http.NewRequest(method, reqURL, nil)
 		if err != nil {
 			lastErr = err
@@ -73,10 +81,12 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 		}
 
 		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("❌ External API returned status %d: %s\n", resp.StatusCode, string(body))
 			lastErr = fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 			continue
 		}
 
+		fmt.Printf("✅ External API response: %d bytes\n", len(body))
 		return body, nil
 	}
 
