@@ -52,9 +52,9 @@
 
       <div class="date-section">
         <label>Период для статистики:</label>
-        <button @click="isCalendarOpen = true" class="date-select-btn">
+        <div class="date-display">
           {{ dateRangeText }}
-        </button>
+        </div>
       </div>
 
       <div class="display-mode-section">
@@ -77,22 +77,12 @@
         Показать статистику ({{ selectedSensors.length }})
       </button>
     </div>
-
-    <Calendar
-      :isOpen="isCalendarOpen"
-      :selectedDate="selectedDate"
-      :selectedDateRange="selectedDateRange"
-      @date-selected="onDateSelected"
-      @date-range-selected="onDateRangeSelected"
-      @close="isCalendarOpen = false"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { getAvailableDistricts, groupSensorsByDistrict, validateDistrictMapping } from '../utils/districtMapping';
-import Calendar from './Calendar.vue';
 import { formatDateISO, formatDateRangeISO } from '../utils/dateFormat';
 
 const props = defineProps({
@@ -110,14 +100,13 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['show-statistics', 'calendar-date-changed']);
+const emit = defineEmits(['show-statistics']);
 
 const isCollapsed = ref(false);
 const selectedPreset = ref('');
 const selectedSensors = ref([]);
 const availableDistricts = ref([]);
 const sensorsByDistrict = ref(new Map());
-const isCalendarOpen = ref(false);
 const selectedDate = ref(new Date());
 const selectedDateRange = ref(null);
 const showIndividualData = ref(false);
@@ -210,31 +199,6 @@ const applyPreset = () => {
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
   emit('show-statistics', selected, selectedPreset.value, selectedDateRange.value, showIndividualData.value);
-};
-
-const onDateSelected = (date) => {
-  console.log('📅 SidePanel onDateSelected:', date);
-  selectedDate.value = date;
-  selectedDateRange.value = null;
-  isCalendarOpen.value = false;
-
-  // Emit calendar change for SensorModal
-  const dateRange = {
-    start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
-    end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
-  };
-  console.log('📅 SidePanel emitting dateRange:', dateRange);
-  emit('calendar-date-changed', dateRange);
-};
-
-const onDateRangeSelected = (range) => {
-  console.log('📅 SidePanel onDateRangeSelected:', range);
-  selectedDateRange.value = range;
-  isCalendarOpen.value = false;
-
-  // Emit calendar change for SensorModal
-  console.log('📅 SidePanel emitting range:', range);
-  emit('calendar-date-changed', range);
 };
 
 // Watch for sensor changes only on initial load
@@ -421,20 +385,15 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
-.date-select-btn {
-  width: 100%;
+.date-display {
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 14px;
-  background: white;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.2s;
-}
-
-.date-select-btn:hover {
-  border-color: #3b82f6;
+  background: #f9fafb;
+  color: #333;
+  font-weight: 500;
+  text-align: center;
 }
 
 .display-mode-section {

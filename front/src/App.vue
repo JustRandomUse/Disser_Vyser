@@ -38,7 +38,6 @@
       :selectedDate="selectedDate"
       :selectedDateRange="selectedDateRange"
       @show-statistics="openStatisticsModal"
-      @calendar-date-changed="onSidePanelCalendarChanged"
     />
     <StatisticsModal
       :isOpen="isStatisticsModalOpen"
@@ -778,11 +777,6 @@ export default {
       isStatisticsModalOpen.value = false;
     };
 
-    const onSidePanelCalendarChanged = (dateRange) => {
-      console.log('📅 SidePanel calendar changed:', dateRange);
-      sensorModalCalendarDateRange.value = dateRange;
-    };
-
     // Watch for date range changes and auto-update StatisticsModal if open
     watch(() => selectedDateRange.value, async (newRange) => {
       if (isStatisticsModalOpen.value && newRange && selectedSensorsForStats.value.length > 0) {
@@ -909,8 +903,7 @@ export default {
       onDateSelected,
       onDateRangeSelected,
       openStatisticsModal,
-      closeStatisticsModal,
-      onSidePanelCalendarChanged
+      closeStatisticsModal
     };
   }
 };
