@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getValidValue } from '../utils/sensorDataRules';
+import { formatDateISO } from '../utils/dateFormat';
 
 // Use local backend proxy instead of direct API calls
 const API_BASE_URL = '/api';
@@ -51,7 +52,7 @@ export const fetchAirQualityData = async (date = null, hour = null) => {
 
     // If date and hour are provided, fetch historical data
     if (date && hour !== null) {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatDateISO(date);
       const hourStr = hour.toString().padStart(2, '0');
       endpoint = `${API_BASE_URL}/datasets/knc-air/data?date=${dateStr}&hour=${hourStr}`;
     }

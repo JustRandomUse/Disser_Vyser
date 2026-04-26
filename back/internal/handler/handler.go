@@ -135,11 +135,9 @@ func (h *Handler) GetDataByDateTime(c *gin.Context) {
 	if timeBegin.Equal(currentHour) {
 		// Use live data endpoint for current hour
 		data, err = h.service.GetLastData(code, sites, indicators)
-	} else if now.Sub(timeBegin) < 24*time.Hour {
-		// Use raw data for recent hours (< 24h ago)
-		data, err = h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
 	} else {
-		// Use archive data for older data (> 24h ago)
+		// Use archive aggregated data for historical hours
+		// According to API.md, hourly archive data is available for last 30 days
 		data, err = h.service.GetAggregatedData(code, timeBegin, timeEnd, "hour", sites, indicators)
 	}
 

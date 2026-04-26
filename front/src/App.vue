@@ -212,7 +212,23 @@ export default {
           }));
         }
 
-        mapSensors.value = data;
+        // If no data returned but we have base sensors, show stations with null values
+        if (data.length === 0 && baseSensors.value.length > 0) {
+          console.warn('⚠️ No data for selected period, showing stations with null values');
+          mapSensors.value = baseSensors.value.map(sensor => ({
+            ...sensor,
+            pm25: null,
+            pm10: null,
+            temperature: null,
+            humidity: null,
+            pressure: null,
+            aqi: null,
+            time: null,
+            noData: true
+          }));
+        } else {
+          mapSensors.value = data;
+        }
       } catch (error) {
         console.error('Failed to load air quality data:', error);
 
