@@ -11,9 +11,5 @@
       "src": "/api/(.*)",
       "dest": "cmd/server/main.go"
     }
-  ],
-  "env": {
-    "SENSOR_API_KEY": "@sensor_api_key",
-    "ALLOWED_ORIGINS": "@allowed_origins"
-  }
+  ]
 }
