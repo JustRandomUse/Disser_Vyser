@@ -355,16 +355,6 @@ const selectToday = () => {
   close();
 };
 
-const selectToday = () => {
-  const today = new Date();
-  currentMonth.value = today.getMonth();
-  currentYear.value = today.getFullYear();
-
-  // Immediately emit and close - no need for "Apply" button
-  emit('date-selected', today);
-  close();
-};
-
 const applySelection = () => {
   if (!pendingStart.value) return;
 
