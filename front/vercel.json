@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://disser-vyser.vercel.app/api/:path*"
+      "destination": "https://disser-vyser-backend.vercel.app/api/:path*"
     }
   ]
 }
