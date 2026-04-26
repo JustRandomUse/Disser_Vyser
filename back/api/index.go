@@ -75,6 +75,16 @@ func (c *Client) getArchiveData(setCode string, timeBegin, timeEnd time.Time, in
 	return c.doRequest("GET", path, params)
 }
 
+func (c *Client) getDataSetDetail(setCode string) ([]byte, error) {
+	path := fmt.Sprintf("/sets/%s", setCode)
+	return c.doRequest("GET", path, nil)
+}
+
+func (c *Client) getLastData(setCode string) ([]byte, error) {
+	path := fmt.Sprintf("/sets/%s/data/last", setCode)
+	return c.doRequest("GET", path, nil)
+}
+
 func parseAPIResponse(data []byte) (json.RawMessage, error) {
 	var response struct {
 		Status struct {
@@ -131,6 +141,99 @@ func initRouter() *gin.Engine {
 						"status": "healthy",
 						"time":   time.Now().Format(time.RFC3339),
 					},
+				})
+			})
+
+			api.GET("/datasets/knc-air", func(c *gin.Context) {
+				data, err := client.getDataSetDetail("knc-air")
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				result, err := parseAPIResponse(data)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				c.JSON(http.StatusOK, Response{
+					Status: "success",
+					Data:   result,
+				})
+			})
+
+			api.GET("/datasets/knc-air/last", func(c *gin.Context) {
+				data, err := client.getLastData("knc-air")
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				result, err := parseAPIResponse(data)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				c.JSON(http.StatusOK, Response{
+					Status: "success",
+					Data:   result,
+				})
+			})
+
+			api.GET("/datasets/knc-air/data", func(c *gin.Context) {
+				dateStr := c.Query("date")
+				hourStr := c.Query("hour")
+
+				date, err := time.Parse("2006-01-02", dateStr)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, Response{
+						Status: "error",
+						Error:  "invalid date format",
+					})
+					return
+				}
+
+				hour := 0
+				fmt.Sscanf(hourStr, "%d", &hour)
+
+				timeBegin := time.Date(date.Year(), date.Month(), date.Day(), hour, 0, 0, 0, time.UTC)
+				timeEnd := timeBegin.Add(time.Hour)
+
+				data, err := client.getArchiveData("knc-air", timeBegin, timeEnd, "hour")
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				result, err := parseAPIResponse(data)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, Response{
+						Status: "error",
+						Error:  err.Error(),
+					})
+					return
+				}
+
+				c.JSON(http.StatusOK, Response{
+					Status: "success",
+					Data:   result,
 				})
 			})
 
