@@ -81,6 +81,7 @@
     <Calendar
       :isOpen="isCalendarOpen"
       :selectedDate="selectedDate"
+      :selectedDateRange="selectedDateRange"
       @date-selected="onDateSelected"
       @date-range-selected="onDateRangeSelected"
       @close="isCalendarOpen = false"

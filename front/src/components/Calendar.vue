@@ -92,7 +92,6 @@
       </div>
 
       <div class="calendar-footer">
-        <button @click="selectToday" class="today-btn">Сегодня</button>
         <button @click="cancelSelection" class="cancel-btn">Отмена</button>
         <button @click="applySelection" class="apply-btn" :disabled="!pendingStart">Применить</button>
       </div>
@@ -101,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
   isOpen: {
@@ -111,6 +110,10 @@ const props = defineProps({
   selectedDate: {
     type: Date,
     default: () => new Date()
+  },
+  selectedDateRange: {
+    type: Object,
+    default: null
   }
 });
 
@@ -125,6 +128,30 @@ const endDate = ref(null);
 const isSelectingRange = ref(false);
 const pendingStart = ref(null);
 const pendingEnd = ref(null);
+
+// Watch for external date/range changes and sync with calendar
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    // Reset pending selections when calendar opens
+    if (props.selectedDateRange && props.selectedDateRange.start && props.selectedDateRange.end) {
+      // Show the range
+      pendingStart.value = props.selectedDateRange.start;
+      pendingEnd.value = props.selectedDateRange.end;
+      currentMonth.value = props.selectedDateRange.start.getMonth();
+      currentYear.value = props.selectedDateRange.start.getFullYear();
+    } else if (props.selectedDate) {
+      // Show the single date
+      pendingStart.value = props.selectedDate;
+      pendingEnd.value = null;
+      currentMonth.value = props.selectedDate.getMonth();
+      currentYear.value = props.selectedDate.getFullYear();
+    } else {
+      // No selection - reset
+      pendingStart.value = null;
+      pendingEnd.value = null;
+    }
+  }
+});
 
 const monthYear = computed(() => {
   const months = [
@@ -316,6 +343,16 @@ const selectYear = (year) => {
     }
     isSelectingRange.value = false;
   }
+};
+
+const selectToday = () => {
+  const today = new Date();
+  currentMonth.value = today.getMonth();
+  currentYear.value = today.getFullYear();
+
+  // Immediately emit and close - no need for "Apply" button
+  emit('date-selected', today);
+  close();
 };
 
 const selectToday = () => {
@@ -703,7 +740,6 @@ const isYearRangeEnd = (year) => {
   gap: 10px;
 }
 
-.today-btn,
 .cancel-btn,
 .apply-btn {
   padding: 10px;
@@ -712,22 +748,12 @@ const isYearRangeEnd = (year) => {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-}
-
-.today-btn {
-  background: #e5e7eb;
-  color: #333;
   flex: 1;
-}
-
-.today-btn:hover {
-  background: #d1d5db;
 }
 
 .cancel-btn {
   background: #e5e7eb;
   color: #333;
-  flex: 1;
 }
 
 .cancel-btn:hover {
@@ -737,7 +763,6 @@ const isYearRangeEnd = (year) => {
 .apply-btn {
   background: #3b82f6;
   color: white;
-  flex: 1;
 }
 
 .apply-btn:hover:not(:disabled) {
