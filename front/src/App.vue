@@ -783,6 +783,92 @@ export default {
       sensorModalCalendarDateRange.value = dateRange;
     };
 
+    // Watch for date range changes and auto-update StatisticsModal if open
+    watch(() => selectedDateRange.value, async (newRange) => {
+      if (isStatisticsModalOpen.value && newRange && selectedSensorsForStats.value.length > 0) {
+        console.log('🔄 Auto-updating StatisticsModal with new date range:', newRange);
+
+        const startDate = new Date(newRange.start);
+        const endDate = new Date(newRange.end);
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        let interval = 'hour';
+        if (daysDiff > 7) {
+          interval = 'day';
+        }
+        if (daysDiff > 90) {
+          interval = 'month';
+        }
+
+        const siteIds = selectedSensorsForStats.value.map(s => s.id);
+
+        try {
+          const data = await fetchTimeSeriesData(
+            startDate,
+            endDate,
+            interval,
+            siteIds,
+            null
+          );
+
+          timeSeriesData.value = data;
+          statisticsDateRange.value = {
+            start: startDate,
+            end: endDate
+          };
+
+          if (interval === 'hour') {
+            statisticsRangeType.value = 'hour';
+          } else if (interval === 'day') {
+            statisticsRangeType.value = 'day';
+          } else if (interval === 'month') {
+            statisticsRangeType.value = 'month';
+          }
+
+          console.log('✅ StatisticsModal data updated');
+        } catch (error) {
+          console.error('❌ Failed to auto-update StatisticsModal:', error);
+        }
+      }
+    }, { deep: true });
+
+    // Watch for sensor selection changes and auto-update StatisticsModal if open
+    watch(() => selectedSensorsForStats.value, async (newSensors) => {
+      if (isStatisticsModalOpen.value && newSensors.length > 0 && selectedDateRange.value) {
+        console.log('🔄 Auto-updating StatisticsModal with new sensor selection');
+
+        const startDate = new Date(selectedDateRange.value.start);
+        const endDate = new Date(selectedDateRange.value.end);
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        let interval = 'hour';
+        if (daysDiff > 7) {
+          interval = 'day';
+        }
+        if (daysDiff > 90) {
+          interval = 'month';
+        }
+
+        const siteIds = newSensors.map(s => s.id);
+
+        try {
+          const data = await fetchTimeSeriesData(
+            startDate,
+            endDate,
+            interval,
+            siteIds,
+            null
+          );
+
+          timeSeriesData.value = data;
+
+          console.log('✅ StatisticsModal data updated with new sensors');
+        } catch (error) {
+          console.error('❌ Failed to auto-update StatisticsModal with new sensors:', error);
+        }
+      }
+    }, { deep: true });
+
     onMounted(() => {
       mode.value = 'live';
       generateTimePoints();
