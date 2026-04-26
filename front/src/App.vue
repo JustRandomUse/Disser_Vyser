@@ -505,11 +505,7 @@ export default {
 
       if (!timePoint) return;
 
-      // Set selectedDateRange for the selected time point
-      selectedDateRange.value = {
-        start: timePoint.startDate,
-        end: timePoint.endDate
-      };
+      // Don't update selectedDateRange - timeline only affects map, not modals
 
       if (timePoint.type === 'hour') {
         // Load data for specific hour
