@@ -286,6 +286,7 @@ const renderTimeSeriesChart = () => {
   console.log('  props.showIndividual:', props.showIndividual);
   console.log('  selectedParams:', selectedParams.value);
   console.log('  timeSeriesData[0]?.data?.length:', props.timeSeriesData[0]?.data?.length);
+  console.log('  timeSeriesData[0]?.data (first 3):', props.timeSeriesData[0]?.data?.slice(0, 3));
 
   const colors = {
     pm25: '#ff6384',
@@ -302,6 +303,17 @@ const renderTimeSeriesChart = () => {
     humidity: '%',
     pressure: 'гПа'
   };
+
+  // Check if we have valid data
+  if (!props.timeSeriesData || props.timeSeriesData.length === 0) {
+    console.warn('⚠️ No timeSeriesData available');
+    return;
+  }
+
+  if (!props.timeSeriesData[0] || !props.timeSeriesData[0].data || props.timeSeriesData[0].data.length === 0) {
+    console.warn('⚠️ First site has no data');
+    return;
+  }
 
   // Prepare data for each selected parameter
   const series = [];
@@ -370,6 +382,12 @@ const renderTimeSeriesChart = () => {
 
   console.log('  series.length:', series.length);
 
+  // Check if we have any valid series
+  if (series.length === 0) {
+    console.warn('⚠️ No valid series data to display');
+    return;
+  }
+
   const times = props.timeSeriesData[0]?.data.map(d => {
     const date = new Date(d.time);
     if (props.rangeType === 'hour') {
@@ -386,6 +404,12 @@ const renderTimeSeriesChart = () => {
 
   console.log('  times.length:', times.length);
   console.log('  First 3 times:', times.slice(0, 3));
+
+  // Check if we have time data
+  if (times.length === 0) {
+    console.warn('⚠️ No time data available');
+    return;
+  }
 
   // Create yAxis config for each selected parameter
   const yAxisConfig = selectedParams.value.map((param, index) => ({
