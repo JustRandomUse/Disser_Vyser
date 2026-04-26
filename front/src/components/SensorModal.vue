@@ -24,6 +24,9 @@
         <p v-if="selectedParams.length > 0 && chartData.length === 0" class="no-data">
           Нет данных за выбранный период
         </p>
+        <p v-if="selectedParams.length > 0 && chartData.length === 1" class="info-message">
+          ℹ️ Почасовые данные доступны только за текущие сутки ({{ currentDateFormatted }}). Для выбранной даты отображаются усредненные значения за день.
+        </p>
         <p v-if="dateRangeText" class="date-range-info">{{ dateRangeText }}</p>
       </div>
 
@@ -101,10 +104,16 @@ const measurements = computed(() => {
 
 // Get chart data from timeSeriesData prop (real API data)
 const chartData = computed(() => {
+  console.log('📊 SensorModal chartData computed:');
+  console.log('  timeSeriesData:', props.timeSeriesData);
+
   if (props.timeSeriesData && props.timeSeriesData.length > 0) {
     const sensorData = props.timeSeriesData[0];
+    console.log('  sensorData:', sensorData);
+    console.log('  sensorData.data length:', sensorData.data?.length);
+
     if (sensorData.data && sensorData.data.length > 0) {
-      return sensorData.data.map(point => ({
+      const mapped = sensorData.data.map(point => ({
         date: point.time,
         pm25: point.pm25,
         pm10: point.pm10,
@@ -112,8 +121,12 @@ const chartData = computed(() => {
         humidity: point.humidity,
         pressure: point.pressure
       }));
+      console.log('  mapped data length:', mapped.length);
+      console.log('  first 3 points:', mapped.slice(0, 3));
+      return mapped;
     }
   }
+  console.log('  returning empty array');
   return [];
 });
 
@@ -169,6 +182,11 @@ const dateRangeText = computed(() => {
   }
 
   return null;
+});
+
+const currentDateFormatted = computed(() => {
+  const now = new Date();
+  return now.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
 });
 
 const closeModal = () => {
@@ -473,7 +491,7 @@ const renderComparisonChart = () => {
       position: index % 2 === 0 ? 'left' : 'right',
       offset: Math.floor(index / 2) * 60,
       nameLocation: 'middle',
-      nameGap: 50,
+      nameGap: 30,
       nameTextStyle: {
         color: colors[param],
         fontWeight: 'bold',
@@ -735,6 +753,16 @@ h3 {
   padding: 40px;
   font-style: italic;
   font-weight: 500;
+}
+
+.info-message {
+  text-align: center;
+  color: #3498db;
+  padding: 20px;
+  font-size: 14px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  margin-top: 10px;
 }
 
 .date-range-info {

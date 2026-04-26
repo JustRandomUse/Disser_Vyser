@@ -166,6 +166,16 @@ func (h *Handler) GetAggregatedData(c *gin.Context) {
 	timeEndStr := c.Query("time_end")
 	interval := c.DefaultQuery("interval", "hour")
 
+	// Validate interval according to API.md
+	// Only hour, day, month are supported by Sensor Hub API
+	if interval != "hour" && interval != "day" && interval != "month" {
+		c.JSON(http.StatusBadRequest, Response{
+			Status: "error",
+			Error:  "invalid interval, must be one of: hour, day, month",
+		})
+		return
+	}
+
 	timeBegin, err := time.Parse("2006-01-02T15:04:05Z", timeBeginStr)
 	if err != nil {
 		timeBegin, err = time.Parse("2006-01-02", timeBeginStr)

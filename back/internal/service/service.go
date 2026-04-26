@@ -15,6 +15,19 @@ type Service struct {
 	cache  *cache.Cache
 }
 
+func normalizeArchiveInterval(interval string) string {
+	switch interval {
+	case "", "hour":
+		return "hour"
+	case "day":
+		return "day"
+	case "month", "year":
+		return "month"
+	default:
+		return "hour"
+	}
+}
+
 // NewService creates a new service instance
 func NewService(apiKey string) *Service {
 	return &Service{
@@ -103,6 +116,7 @@ func (s *Service) GetLastData(setCode string, sites []int, indicators []string) 
 
 // GetAggregatedData retrieves and aggregates data
 func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time, interval string, sites []int, indicators []string) (interface{}, error) {
+	interval = normalizeArchiveInterval(interval)
 	cacheKey := fmt.Sprintf("agg:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites, indicators)
 
 	// Check cache
@@ -110,62 +124,35 @@ func (s *Service) GetAggregatedData(setCode string, timeBegin, timeEnd time.Time
 		return cached, nil
 	}
 
-	// Determine if we should use external API aggregation or do it ourselves
+	// Always use external API archive endpoint for aggregated data
+	// According to API.md:
+	// - hour interval: available for last 30 days
+	// - day interval: available for last 365 days
+	// - month interval: available for entire period
+	data, err := s.client.GetArchiveData(setCode, timeBegin, timeEnd, interval, sites, indicators)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := client.ParseAPIResponse(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache for longer (historical data doesn't change)
 	duration := timeEnd.Sub(timeBegin)
-
-	// For large time ranges, use external API aggregation
-	if duration > 7*24*time.Hour || interval == "day" || interval == "month" {
-		data, err := s.client.GetArchiveData(setCode, timeBegin, timeEnd, interval, sites, indicators)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := client.ParseAPIResponse(data)
-		if err != nil {
-			return nil, err
-		}
-
-		// Cache for longer (historical data doesn't change)
-		cacheDuration := 30 * time.Minute
-		if duration > 30*24*time.Hour {
-			cacheDuration = 2 * time.Hour
-		}
-
-		s.cache.Set(cacheKey, result, cacheDuration)
-		return result, nil
+	cacheDuration := 30 * time.Minute
+	if duration > 30*24*time.Hour {
+		cacheDuration = 2 * time.Hour
 	}
 
-	// For smaller ranges, fetch raw data and aggregate on backend
-	data, err := s.client.GetRawData(setCode, timeBegin, timeEnd, sites, indicators)
-	if err != nil {
-		return nil, err
-	}
-
-	rawResult, err := client.ParseAPIResponse(data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse raw data
-	var rawData []map[string]interface{}
-	if err := json.Unmarshal(rawResult.(json.RawMessage), &rawData); err != nil {
-		return nil, err
-	}
-
-	// Aggregate data
-	aggregated, err := aggregator.AggregateData(rawData, interval)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache aggregated result
-	s.cache.Set(cacheKey, aggregated, 15*time.Minute)
-
-	return aggregated, nil
+	s.cache.Set(cacheKey, result, cacheDuration)
+	return result, nil
 }
 
 // GetAggregatedDataWithStats retrieves aggregated data with statistics
 func (s *Service) GetAggregatedDataWithStats(setCode string, timeBegin, timeEnd time.Time, interval string, sites []int, indicators []string) (interface{}, error) {
+	interval = normalizeArchiveInterval(interval)
 	cacheKey := fmt.Sprintf("agg-stats:%s:%s:%s:%s:%v:%v", setCode, timeBegin.Format("2006-01-02 15:04:05"), timeEnd.Format("2006-01-02 15:04:05"), interval, sites, indicators)
 
 	// Check cache
@@ -211,6 +198,7 @@ func (s *Service) GetTimeSeriesData(setCode string, timeBegin, timeEnd time.Time
 		}
 	}
 
+	interval = normalizeArchiveInterval(interval)
 	return s.GetAggregatedData(setCode, timeBegin, timeEnd, interval, sites, indicators)
 }
 

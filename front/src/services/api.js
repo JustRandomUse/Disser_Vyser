@@ -7,6 +7,12 @@ const API_BASE_URL = '/api';
 // Cache for site coordinates from dataset metadata
 let siteCoordinatesCache = null;
 
+const normalizeArchiveInterval = (interval = 'hour') => {
+  if (interval === 'year') return 'month';
+  if (['hour', 'day', 'month'].includes(interval)) return interval;
+  return 'hour';
+};
+
 // Fetch site coordinates from dataset metadata
 const fetchSiteCoordinates = async () => {
   if (siteCoordinatesCache) {
@@ -88,11 +94,12 @@ export const fetchAirQualityData = async (date = null, hour = null) => {
 export const fetchAggregatedData = async (startDate, endDate, interval = 'hour') => {
   try {
     const coordinates = await fetchSiteCoordinates();
+    const apiInterval = normalizeArchiveInterval(interval);
 
     const timeBegin = startDate.toISOString();
     const timeEnd = endDate.toISOString();
 
-    const endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${interval}`;
+    const endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${apiInterval}`;
 
     const response = await axios.get(endpoint);
 
@@ -135,11 +142,12 @@ export const fetchAggregatedData = async (startDate, endDate, interval = 'hour')
 export const fetchAverageData = async (startDate, endDate, interval = 'hour', sites = null, indicators = null) => {
   try {
     const coordinates = await fetchSiteCoordinates();
+    const apiInterval = normalizeArchiveInterval(interval);
 
     const timeBegin = startDate.toISOString();
     const timeEnd = endDate.toISOString();
 
-    let endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${interval}`;
+    let endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${apiInterval}`;
 
     if (sites && sites.length > 0) {
       endpoint += `&sites=${sites.join(',')}`;
@@ -236,11 +244,12 @@ export const fetchAverageData = async (startDate, endDate, interval = 'hour', si
 export const fetchTimeSeriesData = async (startDate, endDate, interval = 'hour', sites = null, indicators = null) => {
   try {
     const coordinates = await fetchSiteCoordinates();
+    const apiInterval = normalizeArchiveInterval(interval);
 
     const timeBegin = startDate.toISOString();
     const timeEnd = endDate.toISOString();
 
-    let endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${interval}`;
+    let endpoint = `${API_BASE_URL}/datasets/knc-air/aggregated?time_begin=${timeBegin}&time_end=${timeEnd}&interval=${apiInterval}`;
 
     if (sites && sites.length > 0) {
       endpoint += `&sites=${sites.join(',')}`;

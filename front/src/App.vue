@@ -215,6 +215,9 @@ export default {
         mapSensors.value = data;
       } catch (error) {
         console.error('Failed to load air quality data:', error);
+
+        alert('Ошибка загрузки данных о качестве воздуха.\n\nПроверьте подключение к интернету или попробуйте позже.');
+
         const fallbackData = [
           {
             id: 1,
@@ -266,7 +269,10 @@ export default {
 
     const loadAggregatedData = async (startDate, endDate) => {
       try {
-        console.log('Loading aggregated data for range:', startDate, 'to', endDate);
+        console.log('🔍 loadAggregatedData called:');
+        console.log('  startDate:', startDate);
+        console.log('  endDate:', endDate);
+        console.log('  startDate year:', startDate.getFullYear());
 
         const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
         let interval = 'hour';
@@ -281,13 +287,33 @@ export default {
           interval = 'month';
         }
 
+        console.log('  daysDiff:', daysDiff);
+        console.log('  interval:', interval);
+
         // Use fetchAverageData instead of fetchAggregatedData to get one record per sensor
         const siteIds = baseSensors.value.length > 0 ? baseSensors.value.map(s => s.id) : null;
+        console.log('  siteIds:', siteIds);
+
         const data = await fetchAverageData(startDate, endDate, interval, siteIds, null);
-        console.log('Loaded average sensor data:', data);
+        console.log('  ✅ Loaded average sensor data count:', data.length);
+        console.log('  ✅ Loaded average sensor data:', data);
+
+        if (data.length === 0) {
+          console.warn('⚠️ No data available for selected period');
+
+          const startDateStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+          const endDateStr = endDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+
+          if (startDateStr === endDateStr) {
+            alert(`Нет данных за ${startDateStr}.\n\nДанные доступны только за текущий период. Исторические данные могут быть недоступны.`);
+          } else {
+            alert(`Нет данных за период ${startDateStr} - ${endDateStr}.\n\nДанные доступны только за текущий период. Исторические данные могут быть недоступны.`);
+          }
+        }
+
         mapSensors.value = data;
       } catch (error) {
-        console.error('Failed to load aggregated data:', error);
+        console.error('❌ Failed to load aggregated data:', error);
         mapSensors.value = [];
       }
     };
@@ -298,45 +324,92 @@ export default {
       // Determine date range and range type for sensor modal
       let startDate, endDate, rangeType, interval;
 
+      console.log('🔍 openModal called with:');
+      console.log('  selectedTimePoint:', selectedTimePoint.value);
+      console.log('  selectedDateRange:', selectedDateRange.value);
+      console.log('  selectedDate:', selectedDate.value);
+
       if (selectedTimePoint.value) {
         // User selected a specific time point on timeline
         startDate = selectedTimePoint.value.startDate;
         endDate = selectedTimePoint.value.endDate;
         rangeType = selectedTimePoint.value.type;
+
+        // If user selected a specific hour, expand to full day for modal
+        if (rangeType === 'hour') {
+          const selectedDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+          startDate = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), 0, 0, 0);
+          endDate = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), 23, 59, 59);
+          rangeType = 'day'; // Treat as day for modal purposes
+        }
+
+        console.log('  ✅ Using selectedTimePoint (expanded to full day if hour)');
       } else if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
         // User selected a range (from calendar or range selection)
         startDate = selectedDateRange.value.start;
         endDate = selectedDateRange.value.end;
         rangeType = timelineScale.value || 'hour';
+        console.log('  ✅ Using selectedDateRange');
       } else {
         // No timeline selection - fallback to current day with hourly breakdown
         const currentDate = selectedDate.value || new Date();
         startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0);
         endDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
         rangeType = 'hour';
+        console.log('  ✅ Using fallback (current day)');
       }
+
+      console.log('  startDate:', startDate);
+      console.log('  endDate:', endDate);
+      console.log('  rangeType:', rangeType);
 
       // Store for passing to SensorModal
       sensorModalDateRange.value = { start: startDate, end: endDate };
       sensorModalRangeType.value = rangeType;
 
-      // Determine interval based on rangeType
-      if (rangeType === 'hour') interval = 'hour';
-      else if (rangeType === 'day') interval = 'day';
-      else if (rangeType === 'month') interval = 'month';
-      else if (rangeType === 'year') interval = 'month';
-      else interval = 'hour'; // fallback
+      // Check if selected date is today
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const selectedDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const isToday = selectedDay.getTime() === today.getTime();
 
-      console.log('📊 openModal debug:', {
+      console.log('  isToday:', isToday);
+
+      // For SensorModal, determine interval based on whether it's today or historical
+      if (rangeType === 'day' || rangeType === 'hour') {
+        // For a single day selection, always try hourly data first
+        // API will return empty if not available, then we'll fallback to daily
+        interval = 'hour';
+      } else if (rangeType === 'month') {
+        // For a specific month, show daily data throughout the month
+        interval = 'day';
+      } else if (rangeType === 'year') {
+        // For a specific year, show monthly data throughout the year
+        interval = 'month';
+      } else {
+        interval = 'hour'; // fallback
+      }
+
+      console.log('  interval:', interval);
+
+      console.log('📊 openModal summary:', {
         rangeType,
         interval,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         selectedTimePoint: selectedTimePoint.value?.type,
-        selectionMode: selectionMode.value
+        selectionMode: selectionMode.value,
+        isToday
       });
 
       try {
+        console.log('🌐 Calling fetchTimeSeriesData with:', {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          interval,
+          sensorId: sensorData.id
+        });
+
         const data = await fetchTimeSeriesData(
           startDate,
           endDate,
@@ -345,11 +418,89 @@ export default {
           null
         );
 
-        console.log('Loaded time series data for sensor modal:', data);
-        sensorTimeSeriesData.value = data;
+        console.log('✅ Loaded time series data for sensor modal:', data);
+        console.log('  data.length:', data.length);
+        if (data.length > 0) {
+          console.log('  data[0].data.length:', data[0].data?.length);
+          console.log('  First 3 points:', data[0].data?.slice(0, 3));
+        }
+
+        // If API returned empty data for hourly interval, try daily interval
+        if ((data.length === 0 || (data.length > 0 && data[0].data.length === 0)) && interval === 'hour') {
+          console.warn('⚠️ No hourly data available, trying daily interval...');
+
+          const dailyData = await fetchTimeSeriesData(
+            startDate,
+            endDate,
+            'day',
+            [sensorData.id],
+            null
+          );
+
+          console.log('✅ Loaded daily time series data:', dailyData);
+          if (dailyData.length > 0 && dailyData[0].data.length > 0) {
+            sensorTimeSeriesData.value = dailyData;
+          } else {
+            // Still no data, use fallback
+            const dateStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+            console.warn(`⚠️ No data available for ${dateStr}, using current sensor data as single point`);
+
+            sensorTimeSeriesData.value = [{
+              id: sensorData.id,
+              name: sensorData.name,
+              data: [{
+                time: startDate.toISOString(),
+                pm25: sensorData.pm25,
+                pm10: sensorData.pm10,
+                temperature: sensorData.temperature,
+                humidity: sensorData.humidity,
+                pressure: sensorData.pressure,
+                aqi: sensorData.aqi
+              }]
+            }];
+          }
+        } else if (data.length === 0 || (data.length > 0 && data[0].data.length === 0)) {
+          // No data for other intervals, use fallback
+          const dateStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+          console.warn(`⚠️ No time series data available for ${dateStr}, using current sensor data as single point`);
+
+          sensorTimeSeriesData.value = [{
+            id: sensorData.id,
+            name: sensorData.name,
+            data: [{
+              time: startDate.toISOString(),
+              pm25: sensorData.pm25,
+              pm10: sensorData.pm10,
+              temperature: sensorData.temperature,
+              humidity: sensorData.humidity,
+              pressure: sensorData.pressure,
+              aqi: sensorData.aqi
+            }]
+          }];
+        } else {
+          sensorTimeSeriesData.value = data;
+        }
       } catch (error) {
-        console.error('Failed to load sensor time series data:', error);
-        sensorTimeSeriesData.value = [];
+        const dateStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+        console.error(`❌ Failed to load sensor time series data for ${dateStr}:`, error);
+
+        // Fallback: use current sensor data as single point
+        sensorTimeSeriesData.value = [{
+          id: sensorData.id,
+          name: sensorData.name,
+          data: [{
+            time: startDate.toISOString(),
+            pm25: sensorData.pm25,
+            pm10: sensorData.pm10,
+            temperature: sensorData.temperature,
+            humidity: sensorData.humidity,
+            pressure: sensorData.pressure,
+            aqi: sensorData.aqi
+          }]
+        }];
+
+        // Show error message to user
+        alert(`Ошибка загрузки данных за ${dateStr}.\n\nОтображаются текущие значения станции.`);
       }
 
       isModalOpen.value = true;
@@ -375,7 +526,11 @@ export default {
       if (timePoint.type === 'hour') {
         // Load data for specific hour
         loadData(selectedDate.value, timePoint.hour);
-      } else if (timePoint.type === 'day' || timePoint.type === 'month' || timePoint.type === 'year') {
+      } else if (timePoint.type === 'day') {
+        // For a specific day, load aggregated data for that day
+        // This will show stations on the map with averaged values for the day
+        loadAggregatedData(timePoint.startDate, timePoint.endDate);
+      } else if (timePoint.type === 'month' || timePoint.type === 'year') {
         // Load aggregated data for the period
         loadAggregatedData(timePoint.startDate, timePoint.endDate);
       }
@@ -513,6 +668,13 @@ export default {
           statisticsRangeType.value = timelineScale.value; // Use original type for UI
         } catch (error) {
           console.error('❌ Failed to load time series data:', error);
+
+          const startDateStr = selectedDateRange.value.start.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+          const endDateStr = selectedDateRange.value.end.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+
+          alert(`Ошибка загрузки данных за период ${startDateStr} - ${endDateStr}.\n\nПопробуйте выбрать другой период или обновите страницу.`);
+
+          timeSeriesData.value = [];
         }
       } else {
         // Clear time series data for instant mode
@@ -573,6 +735,13 @@ export default {
         console.log('Range selected. Select district or sensors to view statistics.');
       } catch (error) {
         console.error('Failed to load average data:', error);
+
+        const startDateStr = start.startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+        const endDateStr = end.endDate.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        alert(`Ошибка загрузки данных за период ${startDateStr} - ${endDateStr}.\n\nПопробуйте выбрать другой период.`);
+
+        mapSensors.value = [];
       }
     };
 
