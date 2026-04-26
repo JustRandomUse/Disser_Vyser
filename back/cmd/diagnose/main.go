@@ -41,8 +41,8 @@ func main() {
 
 	// Test case: 2026-04-24 data
 	testDate := "2026-04-24"
-	testTimeBegin := "2026-04-24 00:00:00"
-	testTimeEnd := "2026-04-24 23:59:59"
+	testTimeBegin := "2026-04-24T00:00:00Z"
+	testTimeEnd := "2026-04-24T23:59:59Z"
 
 	fmt.Println("=== Air Quality Monitor API Diagnostic Tool ===")
 	fmt.Printf("Testing date: %s\n\n", testDate)
@@ -186,18 +186,27 @@ func parseResponse(body []byte) interface{} {
 }
 
 func countDataRecords(body []byte) int {
-	var response struct {
+	// Try backend format first (status: "success")
+	var backendResponse struct {
+		Status string          `json:"status"`
+		Data   []interface{}   `json:"data"`
+	}
+	if err := json.Unmarshal(body, &backendResponse); err == nil && backendResponse.Status == "success" {
+		return len(backendResponse.Data)
+	}
+
+	// Try direct API format (status: {code: ...})
+	var directResponse struct {
 		Status struct {
 			Code int `json:"code"`
 		} `json:"status"`
 		Data []interface{} `json:"data"`
 	}
-
-	if err := json.Unmarshal(body, &response); err != nil {
-		return -1
+	if err := json.Unmarshal(body, &directResponse); err == nil {
+		return len(directResponse.Data)
 	}
 
-	return len(response.Data)
+	return -1
 }
 
 func maskAPIKey(url, apiKey string) string {
