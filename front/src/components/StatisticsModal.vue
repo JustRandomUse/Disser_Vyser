@@ -284,9 +284,11 @@ const renderTimeSeriesChart = () => {
   console.log('  props.timeSeriesData.length:', props.timeSeriesData.length);
   console.log('  props.rangeType:', props.rangeType);
   console.log('  props.showIndividual:', props.showIndividual);
+  console.log('  props.showIndividual type:', typeof props.showIndividual);
   console.log('  selectedParams:', selectedParams.value);
   console.log('  timeSeriesData[0]?.data?.length:', props.timeSeriesData[0]?.data?.length);
   console.log('  timeSeriesData[0]?.data (first 3):', props.timeSeriesData[0]?.data?.slice(0, 3));
+  console.log('  All sites:', props.timeSeriesData.map(s => ({ name: s.name, dataPoints: s.data?.length })));
 
   const colors = {
     pm25: '#ff6384',
