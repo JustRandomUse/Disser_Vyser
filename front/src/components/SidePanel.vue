@@ -65,7 +65,7 @@
             class="switch-checkbox"
           />
           <span class="switch-slider"></span>
-          <span class="switch-text">{{ showIndividualData ? 'Показать по отдельности' : 'Показать средние' }}</span>
+          <span class="switch-text">Показать данные по отдельности для каждого поста</span>
         </label>
       </div>
 
