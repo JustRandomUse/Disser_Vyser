@@ -98,6 +98,14 @@ const props = defineProps({
   sensors: {
     type: Array,
     default: () => []
+  },
+  selectedDate: {
+    type: Date,
+    default: null
+  },
+  selectedDateRange: {
+    type: Object,
+    default: null
   }
 });
 
@@ -112,6 +120,19 @@ const isCalendarOpen = ref(false);
 const selectedDate = ref(new Date());
 const selectedDateRange = ref(null);
 const showIndividualData = ref(false);
+
+// Watch for external date changes from Timeline
+watch(() => props.selectedDate, (newDate) => {
+  if (newDate) {
+    selectedDate.value = newDate;
+  }
+}, { immediate: true });
+
+watch(() => props.selectedDateRange, (newRange) => {
+  if (newRange) {
+    selectedDateRange.value = newRange;
+  }
+}, { immediate: true });
 
 const dateRangeText = computed(() => {
   if (selectedDateRange.value) {

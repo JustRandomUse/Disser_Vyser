@@ -34,6 +34,8 @@
     />
     <SidePanel
       :sensors="baseSensors"
+      :selectedDate="selectedDate"
+      :selectedDateRange="selectedDateRange"
       @show-statistics="openStatisticsModal"
       @calendar-date-changed="onSidePanelCalendarChanged"
     />
