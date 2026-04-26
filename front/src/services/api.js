@@ -272,6 +272,12 @@ export const fetchTimeSeriesData = async (startDate, endDate, interval = 'hour',
 
       response.data.data.forEach(item => {
         const siteId = item.site;
+
+        // Filter by sites if specified
+        if (sites && sites.length > 0 && !sites.includes(siteId)) {
+          return; // Skip this item if it's not in the requested sites
+        }
+
         const coords = coordinates[siteId];
         const sensorName = coords ? coords.name : '';
 
