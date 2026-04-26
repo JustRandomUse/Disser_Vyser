@@ -4,30 +4,26 @@
       <button class="close-btn" @click="closeModal">&times;</button>
 
       <h2>Среднее значение по выбранным районам</h2>
-      <p class="sensors-count">Датчиков: {{ sensors.length }}</p>
-      <p v-if="dateRangeText" class="date-range">{{ dateRangeText }}</p>
 
-      <div class="parameter-selector">
-        <label>Показатели:</label>
-        <div class="param-buttons">
-          <button
-            v-for="param in availableParams"
-            :key="param"
-            :class="{ active: selectedParams.includes(param) }"
-            @click="toggleParam(param)"
-          >
-            {{ formatKey(param) }}
-          </button>
-        </div>
+      <div class="param-selector">
+        <button
+          v-for="param in availableParams"
+          :key="param"
+          :class="{ active: selectedParams.includes(param) }"
+          @click="toggleParam(param)"
+        >
+          {{ formatKey(param) }}
+        </button>
       </div>
 
-      <div class="chart-section">
+      <div class="chart-container">
         <div v-if="selectedParams.length > 0" ref="statsChart" class="chart"></div>
         <p v-else class="no-selection">Выберите параметры для отображения</p>
+        <p v-if="dateRangeText" class="date-range-info">{{ dateRangeText }}</p>
       </div>
 
       <div class="stats-section">
-        <h3>Средние значения</h3>
+        <h4>Средние значения</h4>
         <table class="stats-table">
           <thead>
             <tr>
@@ -427,7 +423,7 @@ const renderTimeSeriesChart = () => {
     position: index % 2 === 0 ? 'left' : 'right',
     offset: Math.floor(index / 2) * 60,
     nameLocation: 'middle',
-    nameGap: 50,
+    nameGap: 30,
     nameTextStyle: {
       color: colors[param],
       fontWeight: 'bold',
@@ -519,14 +515,6 @@ const renderTimeSeriesChart = () => {
         end: 100,
         zoomOnMouseWheel: true,
         moveOnMouseMove: true
-      },
-      {
-        show: true,
-        type: 'slider',
-        bottom: 20,
-        start: 0,
-        end: 100,
-        height: 30
       }
     ]
   };
@@ -713,14 +701,6 @@ const renderInstantChart = () => {
         end: 100,
         zoomOnMouseWheel: true,
         moveOnMouseMove: true
-      },
-      {
-        show: true,
-        type: 'slider',
-        bottom: 20,
-        start: 0,
-        end: 100,
-        height: 30
       }
     ]
   };
@@ -835,31 +815,39 @@ onBeforeUnmount(() => {
 }
 
 h2 {
-  margin: 0 0 10px 0;
+  margin: 0 0 20px 0;
   color: #333;
 }
 
-.sensors-count {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 5px;
+h3 {
+  margin: 30px 0 15px 0;
+  color: #555;
+  font-size: 18px;
 }
 
-.date-range {
+.chart-container {
+  margin-bottom: 20px;
+}
+
+.date-range-info {
+  text-align: center;
   color: #666;
   font-size: 14px;
-  margin-bottom: 20px;
-  font-style: italic;
+  margin-top: 10px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .stats-section {
-  margin-bottom: 30px;
+  margin-top: 20px;
 }
 
-h3 {
-  margin: 20px 0 10px 0;
+.stats-section h4 {
+  margin: 10px 0;
   color: #555;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .stats-table {
@@ -885,37 +873,20 @@ h3 {
   background: #f9f9f9;
 }
 
-.chart-section {
-  margin-top: 20px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
-}
-
 .chart {
   width: 100%;
   height: calc(100vh - 300px);
   min-height: 500px;
 }
 
-.parameter-selector {
-  margin-bottom: 20px;
-}
-
-.parameter-selector label {
-  font-weight: 600;
-  color: #333;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.param-buttons {
+.param-selector {
   display: flex;
   gap: 10px;
+  margin-bottom: 15px;
   flex-wrap: wrap;
 }
 
-.param-buttons button {
+.param-selector button {
   padding: 8px 16px;
   border: 2px solid #ddd;
   border-radius: 6px;
@@ -925,12 +896,12 @@ h3 {
   transition: all 0.2s;
 }
 
-.param-buttons button:hover {
+.param-selector button:hover {
   border-color: #3b82f6;
   background: #eff6ff;
 }
 
-.param-buttons button.active {
+.param-selector button.active {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;

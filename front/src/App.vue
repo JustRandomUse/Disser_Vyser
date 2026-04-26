@@ -891,6 +891,7 @@ export default {
       statisticsDateRange,
       statisticsRangeType,
       selectionMode,
+      showIndividualStats,
       openModal,
       closeModal,
       onTimeSelected,
