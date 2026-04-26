@@ -57,6 +57,18 @@
         </button>
       </div>
 
+      <div class="display-mode-section">
+        <label class="switch-label">
+          <input
+            type="checkbox"
+            v-model="showIndividualData"
+            class="switch-checkbox"
+          />
+          <span class="switch-slider"></span>
+          <span class="switch-text">{{ showIndividualData ? 'Показать по отдельности' : 'Показать средние' }}</span>
+        </label>
+      </div>
+
       <button
         class="show-stats-btn"
         :disabled="selectedSensors.length === 0"
@@ -89,7 +101,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['show-statistics']);
+const emit = defineEmits(['show-statistics', 'calendar-date-changed']);
 
 const isCollapsed = ref(false);
 const selectedPreset = ref('');
@@ -99,6 +111,7 @@ const sensorsByDistrict = ref(new Map());
 const isCalendarOpen = ref(false);
 const selectedDate = ref(new Date());
 const selectedDateRange = ref(null);
+const showIndividualData = ref(false);
 
 const dateRangeText = computed(() => {
   if (selectedDateRange.value) {
@@ -163,18 +176,28 @@ const applyPreset = () => {
 
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
-  emit('show-statistics', selected, selectedPreset.value, selectedDateRange.value);
+  emit('show-statistics', selected, selectedPreset.value, selectedDateRange.value, showIndividualData.value);
 };
 
 const onDateSelected = (date) => {
   selectedDate.value = date;
   selectedDateRange.value = null;
   isCalendarOpen.value = false;
+
+  // Emit calendar change for SensorModal
+  const dateRange = {
+    start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
+    end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+  };
+  emit('calendar-date-changed', dateRange);
 };
 
 const onDateRangeSelected = (range) => {
   selectedDateRange.value = range;
   isCalendarOpen.value = false;
+
+  // Emit calendar change for SensorModal
+  emit('calendar-date-changed', range);
 };
 
 // Watch for sensor changes only on initial load
@@ -375,5 +398,57 @@ input[type="checkbox"] {
 
 .date-select-btn:hover {
   border-color: #3b82f6;
+}
+
+.display-mode-section {
+  margin-bottom: 20px;
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-checkbox {
+  display: none;
+}
+
+.switch-slider {
+  position: relative;
+  width: 48px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 24px;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+}
+
+.switch-checkbox:checked + .switch-slider {
+  background: #3b82f6;
+}
+
+.switch-checkbox:checked + .switch-slider::before {
+  transform: translateX(24px);
+}
+
+.switch-text {
+  color: #555;
+  font-size: 14px;
+  font-weight: 500;
 }
 </style>

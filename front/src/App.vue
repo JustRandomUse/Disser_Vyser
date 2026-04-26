@@ -35,6 +35,7 @@
     <SidePanel
       :sensors="baseSensors"
       @show-statistics="openStatisticsModal"
+      @calendar-date-changed="onSidePanelCalendarChanged"
     />
     <StatisticsModal
       :isOpen="isStatisticsModalOpen"
@@ -42,6 +43,7 @@
       :timeSeriesData="timeSeriesData"
       :dateRange="statisticsDateRange"
       :rangeType="statisticsRangeType"
+      :showIndividual="showIndividualStats"
       @close="closeStatisticsModal"
     />
   </div>
@@ -96,6 +98,8 @@ export default {
     const sensorModalRangeType = ref('instant'); // Range type for sensor modal
     const statisticsDateRange = ref(null);
     const statisticsRangeType = ref('instant');
+    const showIndividualStats = ref(false);
+    const sensorModalCalendarDateRange = ref(null); // Calendar date range for sensor modal (from SidePanel)
     let autoRefreshInterval = null;
 
     const generateTimePoints = () => {
@@ -337,86 +341,52 @@ export default {
     const openModal = async (sensorData) => {
       selectedSensor.value = sensorData;
 
-      // Determine date range and range type for sensor modal
+      // Use calendar date range from SidePanel if available, otherwise use current day
       let startDate, endDate, rangeType, interval;
 
       console.log('🔍 openModal called with:');
-      console.log('  selectedTimePoint:', selectedTimePoint.value);
-      console.log('  selectedDateRange:', selectedDateRange.value);
-      console.log('  selectedDate:', selectedDate.value);
+      console.log('  sensorModalCalendarDateRange:', sensorModalCalendarDateRange.value);
 
-      if (selectedTimePoint.value) {
-        // User selected a specific time point on timeline
-        startDate = selectedTimePoint.value.startDate;
-        endDate = selectedTimePoint.value.endDate;
-        rangeType = selectedTimePoint.value.type;
+      if (sensorModalCalendarDateRange.value && sensorModalCalendarDateRange.value.start && sensorModalCalendarDateRange.value.end) {
+        // Use calendar date range from SidePanel
+        startDate = sensorModalCalendarDateRange.value.start;
+        endDate = sensorModalCalendarDateRange.value.end;
 
-        // If user selected a specific hour, expand to full day for modal
-        if (rangeType === 'hour') {
-          const selectedDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          startDate = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), 0, 0, 0);
-          endDate = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), 23, 59, 59);
-          rangeType = 'day'; // Treat as day for modal purposes
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff === 0) {
+          rangeType = 'day';
+          interval = 'hour';
+        } else if (daysDiff <= 31) {
+          rangeType = 'day';
+          interval = 'day';
+        } else if (daysDiff <= 365) {
+          rangeType = 'month';
+          interval = 'day';
+        } else {
+          rangeType = 'year';
+          interval = 'month';
         }
 
-        console.log('  ✅ Using selectedTimePoint (expanded to full day if hour)');
-      } else if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
-        // User selected a range (from calendar or range selection)
-        startDate = selectedDateRange.value.start;
-        endDate = selectedDateRange.value.end;
-        rangeType = timelineScale.value || 'hour';
-        console.log('  ✅ Using selectedDateRange');
+        console.log('  ✅ Using calendar date range from SidePanel');
       } else {
-        // No timeline selection - fallback to current day with hourly breakdown
+        // Fallback to current day with hourly breakdown
         const currentDate = selectedDate.value || new Date();
         startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0);
         endDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
-        rangeType = 'hour';
+        rangeType = 'day';
+        interval = 'hour';
         console.log('  ✅ Using fallback (current day)');
       }
 
       console.log('  startDate:', startDate);
       console.log('  endDate:', endDate);
       console.log('  rangeType:', rangeType);
+      console.log('  interval:', interval);
 
       // Store for passing to SensorModal
       sensorModalDateRange.value = { start: startDate, end: endDate };
       sensorModalRangeType.value = rangeType;
-
-      // Check if selected date is today
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const selectedDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const isToday = selectedDay.getTime() === today.getTime();
-
-      console.log('  isToday:', isToday);
-
-      // For SensorModal, determine interval based on whether it's today or historical
-      if (rangeType === 'day' || rangeType === 'hour') {
-        // For a single day selection, always try hourly data first
-        // API will return empty if not available, then we'll fallback to daily
-        interval = 'hour';
-      } else if (rangeType === 'month') {
-        // For a specific month, show daily data throughout the month
-        interval = 'day';
-      } else if (rangeType === 'year') {
-        // For a specific year, show monthly data throughout the year
-        interval = 'month';
-      } else {
-        interval = 'hour'; // fallback
-      }
-
-      console.log('  interval:', interval);
-
-      console.log('📊 openModal summary:', {
-        rangeType,
-        interval,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        selectedTimePoint: selectedTimePoint.value?.type,
-        selectionMode: selectionMode.value,
-        isToday
-      });
 
       try {
         console.log('🌐 Calling fetchTimeSeriesData with:', {
@@ -606,6 +576,12 @@ export default {
             generateTimePoints();
             const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
             loadData(range.start, hour);
+
+            // Update calendar date range for sensor modal
+            sensorModalCalendarDateRange.value = {
+              start: new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate(), 0, 0, 0),
+              end: new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate(), 23, 59, 59)
+            };
           } else {
             mode.value = 'range';
             selectedDateRange.value = range;
@@ -614,6 +590,12 @@ export default {
             rangeEnd.value = range.end;
             generateTimePointsForRange(range.start, range.end);
             loadAggregatedData(range.start, range.end);
+
+            // Update calendar date range for sensor modal
+            sensorModalCalendarDateRange.value = {
+              start: range.start,
+              end: range.end
+            };
           }
         } else {
           mode.value = 'single-day';
@@ -624,11 +606,17 @@ export default {
           generateTimePoints();
           const hour = selectedTimePoint.value ? selectedTimePoint.value.hour : 0;
           loadData(range.start, hour);
+
+          // Update calendar date range for sensor modal
+          sensorModalCalendarDateRange.value = {
+            start: new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate(), 0, 0, 0),
+            end: new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate(), 23, 59, 59)
+          };
         }
       }
     };
 
-    const openStatisticsModal = async (selectedSensors, districtKey, dateRange) => {
+    const openStatisticsModal = async (selectedSensors, districtKey, dateRange, showIndividual) => {
       // Map selected sensor IDs to full sensor objects from baseSensors
       selectedSensorsForStats.value = selectedSensors.map(s => {
         const baseSensor = baseSensors.value.find(bs => bs.id === s.id);
@@ -646,6 +634,9 @@ export default {
           pressure: mapSensor ? mapSensor.pressure : s.pressure || 0
         };
       });
+
+      // Store the showIndividual flag
+      showIndividualStats.value = showIndividual;
 
       // Use dateRange from SidePanel if provided, otherwise use current selection
       const effectiveDateRange = dateRange || selectedDateRange.value;
@@ -784,6 +775,11 @@ export default {
       isStatisticsModalOpen.value = false;
     };
 
+    const onSidePanelCalendarChanged = (dateRange) => {
+      console.log('📅 SidePanel calendar changed:', dateRange);
+      sensorModalCalendarDateRange.value = dateRange;
+    };
+
     onMounted(() => {
       mode.value = 'live';
       generateTimePoints();
@@ -824,7 +820,8 @@ export default {
       onDateSelected,
       onDateRangeSelected,
       openStatisticsModal,
-      closeStatisticsModal
+      closeStatisticsModal,
+      onSidePanelCalendarChanged
     };
   }
 };

@@ -78,6 +78,10 @@ const props = defineProps({
   rangeType: {
     type: String,
     default: 'instant' // 'instant' | 'hour' | 'day' | 'month' | 'year'
+  },
+  showIndividual: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -279,6 +283,7 @@ const renderTimeSeriesChart = () => {
   console.log('📊 ДИАГНОСТИКА renderTimeSeriesChart:');
   console.log('  props.timeSeriesData.length:', props.timeSeriesData.length);
   console.log('  props.rangeType:', props.rangeType);
+  console.log('  props.showIndividual:', props.showIndividual);
   console.log('  selectedParams:', selectedParams.value);
   console.log('  timeSeriesData[0]?.data?.length:', props.timeSeriesData[0]?.data?.length);
 
@@ -298,25 +303,70 @@ const renderTimeSeriesChart = () => {
     pressure: 'гПа'
   };
 
-  // Prepare data for each selected parameter across all sites
+  // Prepare data for each selected parameter
   const series = [];
 
-  selectedParams.value.forEach(param => {
-    props.timeSeriesData.forEach(site => {
-      const values = site.data.map(d => d[param]).filter(v => isValidMetricValue(v));
+  if (props.showIndividual) {
+    // Show individual lines for each sensor
+    selectedParams.value.forEach(param => {
+      props.timeSeriesData.forEach(site => {
+        const validData = site.data
+          .map(d => [d.time, d[param]])
+          .filter(([time, val]) => isValidMetricValue(val));
 
-      series.push({
-        name: `${site.name} - ${formatKey(param)}`,
-        type: 'line',
-        data: values,
-        smooth: true,
-        itemStyle: {
-          color: colors[param]
-        },
-        yAxisIndex: selectedParams.value.indexOf(param)
+        if (validData.length > 0) {
+          series.push({
+            name: `${site.name} - ${formatKey(param)}`,
+            type: 'line',
+            data: validData,
+            smooth: true,
+            itemStyle: {
+              color: colors[param]
+            },
+            yAxisIndex: selectedParams.value.indexOf(param)
+          });
+        }
       });
     });
-  });
+  } else {
+    // Show averaged lines for each parameter
+    selectedParams.value.forEach(param => {
+      // Get all time points from first site
+      const timePoints = props.timeSeriesData[0]?.data.map(d => d.time) || [];
+
+      // Calculate average for each time point
+      const averagedData = timePoints.map(time => {
+        const valuesAtTime = props.timeSeriesData
+          .map(site => {
+            const point = site.data.find(d => d.time === time);
+            return point ? point[param] : null;
+          })
+          .filter(v => isValidMetricValue(v));
+
+        if (valuesAtTime.length > 0) {
+          const avg = valuesAtTime.reduce((a, b) => a + b, 0) / valuesAtTime.length;
+          return [time, avg];
+        }
+        return null;
+      }).filter(d => d !== null);
+
+      if (averagedData.length > 0) {
+        series.push({
+          name: `Среднее - ${formatKey(param)}`,
+          type: 'line',
+          data: averagedData,
+          smooth: true,
+          itemStyle: {
+            color: colors[param]
+          },
+          lineStyle: {
+            width: 3
+          },
+          yAxisIndex: selectedParams.value.indexOf(param)
+        });
+      }
+    });
+  }
 
   console.log('  series.length:', series.length);
 
@@ -370,7 +420,7 @@ const renderTimeSeriesChart = () => {
     }
   }));
 
-  // Calculate dynamic grid margins - минимальные отступы
+  // Calculate dynamic grid margins
   const leftAxesCount = Math.ceil(selectedParams.value.length / 2);
   const rightAxesCount = Math.floor(selectedParams.value.length / 2);
   const gridLeft = leftAxesCount > 1 ? 60 + (leftAxesCount - 1) * 60 : 60;
@@ -378,7 +428,7 @@ const renderTimeSeriesChart = () => {
 
   const option = {
     title: {
-      text: `Сравнение параметров за период`,
+      text: props.showIndividual ? 'Сравнение параметров (по отдельности)' : 'Сравнение параметров (средние)',
       left: 'center',
       top: 10
     },
@@ -679,6 +729,14 @@ watch(selectedParams, () => {
     });
   }
 }, { deep: true });
+
+watch(() => props.showIndividual, () => {
+  if (props.isOpen) {
+    nextTick(() => {
+      renderChart();
+    });
+  }
+});
 
 onBeforeUnmount(() => {
   // Clear any pending timers
