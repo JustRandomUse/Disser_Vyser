@@ -11,8 +11,8 @@ import (
 
 const (
 	BaseURL        = "http://sensor.krasn.ru/hub/api/3.0"
-	DefaultTimeout = 30 * time.Second
-	MaxRetries     = 3
+	DefaultTimeout = 180 * time.Second
+	MaxRetries     = 1
 	RetryDelay     = 2 * time.Second
 )
 
