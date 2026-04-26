@@ -588,7 +588,7 @@ export default {
           } else {
             mode.value = 'range';
             selectedDateRange.value = range;
-            selectedDate.value = range.start;
+            selectedDate.value = null; // Clear single date when range is selected
             rangeStart.value = range.start;
             rangeEnd.value = range.end;
             generateTimePointsForRange(range.start, range.end);

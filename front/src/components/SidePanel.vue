@@ -136,7 +136,7 @@ watch(() => props.selectedDateRange, (newRange) => {
 }, { immediate: true });
 
 const dateRangeText = computed(() => {
-  // Use props directly for more reliable sync
+  // Priority: props.selectedDateRange > local selectedDateRange > props.selectedDate > local selectedDate
   if (props.selectedDateRange && props.selectedDateRange.start && props.selectedDateRange.end) {
     return formatDateRangeISO(props.selectedDateRange.start, props.selectedDateRange.end);
   }
@@ -146,7 +146,11 @@ const dateRangeText = computed(() => {
   if (props.selectedDate) {
     return formatDateISO(props.selectedDate);
   }
-  return formatDateISO(selectedDate.value);
+  if (selectedDate.value) {
+    return formatDateISO(selectedDate.value);
+  }
+  // Fallback to today
+  return formatDateISO(new Date());
 });
 
 const allSelected = computed(() => {
