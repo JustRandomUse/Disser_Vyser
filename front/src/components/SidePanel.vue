@@ -136,8 +136,15 @@ watch(() => props.selectedDateRange, (newRange) => {
 }, { immediate: true });
 
 const dateRangeText = computed(() => {
-  if (selectedDateRange.value) {
+  // Use props directly for more reliable sync
+  if (props.selectedDateRange && props.selectedDateRange.start && props.selectedDateRange.end) {
+    return formatDateRangeISO(props.selectedDateRange.start, props.selectedDateRange.end);
+  }
+  if (selectedDateRange.value && selectedDateRange.value.start && selectedDateRange.value.end) {
     return formatDateRangeISO(selectedDateRange.value.start, selectedDateRange.value.end);
+  }
+  if (props.selectedDate) {
+    return formatDateISO(props.selectedDate);
   }
   return formatDateISO(selectedDate.value);
 });
@@ -202,6 +209,7 @@ const showStatistics = () => {
 };
 
 const onDateSelected = (date) => {
+  console.log('📅 SidePanel onDateSelected:', date);
   selectedDate.value = date;
   selectedDateRange.value = null;
   isCalendarOpen.value = false;
@@ -211,14 +219,17 @@ const onDateSelected = (date) => {
     start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
     end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
   };
+  console.log('📅 SidePanel emitting dateRange:', dateRange);
   emit('calendar-date-changed', dateRange);
 };
 
 const onDateRangeSelected = (range) => {
+  console.log('📅 SidePanel onDateRangeSelected:', range);
   selectedDateRange.value = range;
   isCalendarOpen.value = false;
 
   // Emit calendar change for SensorModal
+  console.log('📅 SidePanel emitting range:', range);
   emit('calendar-date-changed', range);
 };
 
