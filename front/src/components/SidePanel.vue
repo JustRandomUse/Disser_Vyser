@@ -198,7 +198,10 @@ const applyPreset = () => {
 
 const showStatistics = () => {
   const selected = props.sensors.filter(s => selectedSensors.value.includes(s.id));
-  emit('show-statistics', selected, selectedPreset.value, selectedDateRange.value, showIndividualData.value);
+  // Use props.selectedDateRange directly for more reliable data
+  const dateRange = props.selectedDateRange || selectedDateRange.value;
+  console.log('📊 SidePanel showStatistics - dateRange:', dateRange);
+  emit('show-statistics', selected, selectedPreset.value, dateRange, showIndividualData.value);
 };
 
 // Watch for sensor changes only on initial load
