@@ -7,6 +7,8 @@ const API_BASE_URL = '/api';
 
 // Cache for site coordinates from dataset metadata
 let siteCoordinatesCache = null;
+const COORDINATES_CACHE_KEY = 'knc-air-coordinates';
+const COORDINATES_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 const normalizeArchiveInterval = (interval = 'hour') => {
   if (interval === 'year') return 'month';
@@ -16,11 +18,35 @@ const normalizeArchiveInterval = (interval = 'hour') => {
 
 // Fetch site coordinates from dataset metadata
 const fetchSiteCoordinates = async () => {
+  // Check memory cache first
   if (siteCoordinatesCache) {
     return siteCoordinatesCache;
   }
 
+  // Check localStorage cache
   try {
+    const cached = localStorage.getItem(COORDINATES_CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+
+      // Check if cache is still valid (less than 24 hours old)
+      if (now - timestamp < COORDINATES_CACHE_TTL) {
+        console.log('📦 Using cached coordinates from localStorage');
+        siteCoordinatesCache = data;
+        return data;
+      } else {
+        console.log('🗑️ Cache expired, fetching fresh coordinates');
+        localStorage.removeItem(COORDINATES_CACHE_KEY);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to read coordinates cache:', error);
+  }
+
+  // Fetch from API
+  try {
+    console.log('🌐 Fetching coordinates from API');
     const response = await axios.get(`${API_BASE_URL}/datasets/knc-air`);
 
     if (response.data && response.data.data && response.data.data.sites) {
@@ -33,7 +59,21 @@ const fetchSiteCoordinates = async () => {
           code: site.code
         };
       });
+
+      // Save to memory cache
       siteCoordinatesCache = coordinates;
+
+      // Save to localStorage with timestamp
+      try {
+        localStorage.setItem(COORDINATES_CACHE_KEY, JSON.stringify({
+          data: coordinates,
+          timestamp: Date.now()
+        }));
+        console.log('💾 Coordinates cached to localStorage');
+      } catch (error) {
+        console.warn('Failed to cache coordinates:', error);
+      }
+
       return coordinates;
     }
   } catch (error) {
