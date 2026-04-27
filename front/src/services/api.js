@@ -95,9 +95,32 @@ export const fetchAirQualityData = async (date = null, hour = null) => {
       const dateStr = formatDateISO(date);
       const hourStr = hour.toString().padStart(2, '0');
       endpoint = `${API_BASE_URL}/datasets/knc-air/data?date=${dateStr}&hour=${hourStr}`;
+    } else {
+      // For /last endpoint, check sessionStorage cache
+      const LAST_DATA_CACHE_KEY = 'knc-air-last-data';
+      const LAST_DATA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+      try {
+        const cached = sessionStorage.getItem(LAST_DATA_CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const now = Date.now();
+
+          if (now - timestamp < LAST_DATA_CACHE_TTL) {
+            console.log('📦 Using cached last data from sessionStorage');
+            return data;
+          } else {
+            console.log('🗑️ Last data cache expired');
+            sessionStorage.removeItem(LAST_DATA_CACHE_KEY);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read last data cache:', error);
+      }
     }
 
     // Use our backend endpoint for data
+    console.log('🌐 Fetching air quality data from API');
     const response = await axios.get(endpoint);
 
     if (response.data && response.data.status && response.data.status === 'success') {
@@ -121,6 +144,19 @@ export const fetchAirQualityData = async (date = null, hour = null) => {
           time: item.time
         };
       }).filter(item => item !== null);
+
+      // Cache /last data in sessionStorage
+      if (!date && hour === null) {
+        try {
+          sessionStorage.setItem('knc-air-last-data', JSON.stringify({
+            data: sensors,
+            timestamp: Date.now()
+          }));
+          console.log('💾 Last data cached to sessionStorage');
+        } catch (error) {
+          console.warn('Failed to cache last data:', error);
+        }
+      }
 
       return sensors;
     }
