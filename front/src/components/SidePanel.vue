@@ -302,8 +302,6 @@ h3 {
 }
 
 .sensors-list {
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 10px;
