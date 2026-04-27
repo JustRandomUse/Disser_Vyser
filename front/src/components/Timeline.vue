@@ -11,7 +11,7 @@
       ←
     </button>
     
-    <div class="timeline-body">
+    <div class="timeline-body" :style="{ gridTemplateColumns: `repeat(${pointsPerPage}, 1fr)` }">
       <div class="line"></div>
       <div
         v-for="(point, index) in visiblePoints"
@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { formatDateISO, formatDateRangeISO } from '../utils/dateFormat';
 
 const props = defineProps({
@@ -60,8 +60,46 @@ const props = defineProps({
 const emit = defineEmits(['open-calendar', 'time-selected', 'range-selected']);
 
 const currentPage = ref(1);
-const pointsPerPage = 15;
+const pointsPerPage = ref(15);
 const selectedIndex = ref(-1); // -1 means no selection
+
+// Calculate points per page based on window width
+const calculatePointsPerPage = () => {
+  const width = window.innerWidth;
+  // Reserve space for calendar button (~190px), counter (~50px), nav buttons (~64px), gaps (~48px)
+  const reservedSpace = 352;
+  const availableWidth = width - reservedSpace;
+  // Each point needs approximately 60px (circle + text + gap)
+  const pointWidth = 60;
+  const points = Math.floor(availableWidth / pointWidth);
+  // Minimum 5 points, maximum 20 points
+  pointsPerPage.value = Math.max(5, Math.min(20, points));
+};
+
+// Watch for window resize
+let resizeTimeout;
+const handleResize = () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const oldPointsPerPage = pointsPerPage.value;
+    calculatePointsPerPage();
+    // If points per page changed, recalculate current page
+    if (oldPointsPerPage !== pointsPerPage.value) {
+      currentPage.value = 1;
+      selectedIndex.value = -1;
+    }
+  }, 200);
+};
+
+onMounted(() => {
+  calculatePointsPerPage();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  clearTimeout(resizeTimeout);
+});
 
 // Watch for date changes and reset pagination
 watch(() => props.date, () => {
@@ -76,10 +114,10 @@ watch(() => props.selectedTimePoint, (newTimePoint) => {
     const globalIndex = props.timePoints.findIndex(p => p.time === newTimePoint.time);
     if (globalIndex !== -1) {
       // Calculate which page this point is on
-      const page = Math.floor(globalIndex / pointsPerPage) + 1;
+      const page = Math.floor(globalIndex / pointsPerPage.value) + 1;
       currentPage.value = page;
       // Calculate local index on current page
-      selectedIndex.value = globalIndex % pointsPerPage;
+      selectedIndex.value = globalIndex % pointsPerPage.value;
     }
   }
 }, { immediate: true });
@@ -93,17 +131,17 @@ const formattedDate = computed(() => {
 });
 
 const totalPages = computed(() => {
-  return Math.ceil(props.timePoints.length / pointsPerPage);
+  return Math.ceil(props.timePoints.length / pointsPerPage.value);
 });
 
 const visiblePoints = computed(() => {
-  const start = (currentPage.value - 1) * pointsPerPage;
-  const end = start + pointsPerPage;
+  const start = (currentPage.value - 1) * pointsPerPage.value;
+  const end = start + pointsPerPage.value;
   return props.timePoints.slice(start, end);
 });
 
 const selectPoint = (index) => {
-  const globalIndex = (currentPage.value - 1) * pointsPerPage + index;
+  const globalIndex = (currentPage.value - 1) * pointsPerPage.value + index;
   const point = props.timePoints[globalIndex];
 
   selectedIndex.value = index;
@@ -195,7 +233,6 @@ const nextPage = () => {
 
 .timeline-body {
   display: grid;
-  grid-template-columns: repeat(15, 1fr);
   place-items: center;
   position: relative;
   width: 100%;
