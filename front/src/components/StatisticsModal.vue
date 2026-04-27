@@ -335,8 +335,15 @@ const renderTimeSeriesChart = () => {
             type: 'line',
             data: validData,
             smooth: true,
+            symbolSize: 8,
+            emphasis: {
+              focus: 'series'
+            },
             itemStyle: {
               color: colors[param]
+            },
+            lineStyle: {
+              width: 2
             },
             yAxisIndex: selectedParams.value.indexOf(param)
           });
@@ -373,6 +380,10 @@ const renderTimeSeriesChart = () => {
           type: 'line',
           data: averagedData,
           smooth: true,
+          symbolSize: 8,
+          emphasis: {
+            focus: 'series'
+          },
           itemStyle: {
             color: colors[param]
           },
