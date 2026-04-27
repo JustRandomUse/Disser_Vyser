@@ -255,6 +255,12 @@ const renderSingleParamChart = () => {
     return;
   }
 
+  // Check if DOM element exists
+  if (!mainChart.value) {
+    console.warn('⚠️ Chart container not ready');
+    return;
+  }
+
   mainChartInstance.value = echarts.init(mainChart.value);
 
   const param = selectedParams.value[0]; // First selected parameter
@@ -275,6 +281,10 @@ const renderSingleParamChart = () => {
   }
 
   const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+  const seriesData = data.map(d => [d.date, d[param]]).filter(([date, val]) => isValidMetricValue(val));
+  console.log('📊 renderSingleParamChart - seriesData:', seriesData.slice(0, 3));
+  console.log('📊 renderSingleParamChart - seriesData.length:', seriesData.length);
 
   const option = {
     title: {
@@ -347,7 +357,7 @@ const renderSingleParamChart = () => {
         name: formatKey(param),
         type: 'line',
         smooth: true,
-        data: data.map(d => [d.date, d[param]]).filter(([date, val]) => isValidMetricValue(val)),
+        data: seriesData,
         itemStyle: {
           color: colors[param]
         },
@@ -431,6 +441,12 @@ const renderComparisonChart = () => {
   // If no data, show empty state
   if (data.length === 0) {
     mainChartInstance.value = null;
+    return;
+  }
+
+  // Check if DOM element exists
+  if (!mainChart.value) {
+    console.warn('⚠️ Chart container not ready');
     return;
   }
 
