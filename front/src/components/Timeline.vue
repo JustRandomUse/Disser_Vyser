@@ -50,6 +50,10 @@ const props = defineProps({
   dateRange: {
     type: Object,
     default: null
+  },
+  selectedTimePoint: {
+    type: Object,
+    default: null
   }
 });
 
@@ -64,6 +68,21 @@ watch(() => props.date, () => {
   currentPage.value = 1;
   selectedIndex.value = -1; // -1 means no selection
 });
+
+// Watch for selectedTimePoint changes from parent
+watch(() => props.selectedTimePoint, (newTimePoint) => {
+  if (newTimePoint && props.timePoints.length > 0) {
+    // Find the index of the selected time point
+    const globalIndex = props.timePoints.findIndex(p => p.time === newTimePoint.time);
+    if (globalIndex !== -1) {
+      // Calculate which page this point is on
+      const page = Math.floor(globalIndex / pointsPerPage) + 1;
+      currentPage.value = page;
+      // Calculate local index on current page
+      selectedIndex.value = globalIndex % pointsPerPage;
+    }
+  }
+}, { immediate: true });
 
 const formattedDate = computed(() => {
   if (props.dateRange && props.dateRange.start && props.dateRange.end) {

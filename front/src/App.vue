@@ -13,6 +13,7 @@
       :date="selectedDate"
       :timePoints="timePoints"
       :dateRange="selectedDateRange"
+      :selectedTimePoint="selectedTimePoint"
       @time-selected="onTimeSelected"
       @range-selected="onRangeSelected"
       @open-calendar="isCalendarOpen = true"
@@ -587,7 +588,12 @@ export default {
             rangeStart.value = range.start;
             rangeEnd.value = range.end;
             generateTimePointsForRange(range.start, range.end);
-            loadAggregatedData(range.start, range.end);
+
+            // Automatically select the first time point
+            if (timePoints.value.length > 0) {
+              selectedTimePoint.value = timePoints.value[0];
+              onTimeSelected(timePoints.value[0]);
+            }
 
             // Update calendar date range for sensor modal
             sensorModalCalendarDateRange.value = {
