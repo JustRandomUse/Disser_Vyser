@@ -539,7 +539,10 @@ export default {
 
       mode.value = 'single-day';
       selectedDate.value = date;
-      selectedDateRange.value = null;
+      selectedDateRange.value = {
+        start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
+        end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+      };
       rangeStart.value = null;
       rangeEnd.value = null;
       generateTimePoints();
