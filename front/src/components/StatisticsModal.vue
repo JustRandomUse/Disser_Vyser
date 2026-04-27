@@ -565,7 +565,7 @@ const renderInstantChart = () => {
     const stat = statistics.value[param];
 
     // Create single data point for aggregated average value
-    const data = [[0, stat.avg]];
+    const data = [stat.avg]; // Just the value, not [x, y] format for category axis
 
     series.push({
       name: formatKey(param),
@@ -573,8 +573,15 @@ const renderInstantChart = () => {
       smooth: true,
       data: data,
       yAxisIndex: index,
+      symbolSize: 8,
+      emphasis: {
+        focus: 'series'
+      },
       itemStyle: {
         color: colors[param]
+      },
+      lineStyle: {
+        width: 2
       },
       markLine: {
         data: [
