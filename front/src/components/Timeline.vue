@@ -57,15 +57,12 @@ const emit = defineEmits(['open-calendar', 'time-selected', 'range-selected']);
 
 const currentPage = ref(1);
 const pointsPerPage = 15;
-const selectedIndex = ref(0);
+const selectedIndex = ref(-1); // -1 means no selection
 
 // Watch for date changes and reset pagination
 watch(() => props.date, () => {
   currentPage.value = 1;
-  selectedIndex.value = 0;
-  if (props.timePoints.length > 0) {
-    emit('time-selected', props.timePoints[0]);
-  }
+  selectedIndex.value = -1; // -1 means no selection
 });
 
 const formattedDate = computed(() => {
@@ -101,14 +98,14 @@ const isInSelectedRange = (index) => {
 const previousPage = () => {
   if (currentPage.value > 1) {
     currentPage.value--;
-    selectedIndex.value = 0;
+    selectedIndex.value = -1; // Clear selection when changing page
   }
 };
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
-    selectedIndex.value = 0;
+    selectedIndex.value = -1; // Clear selection when changing page
   }
 };
 </script>
