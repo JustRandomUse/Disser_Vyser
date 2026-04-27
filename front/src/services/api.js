@@ -273,9 +273,13 @@ export const fetchTimeSeriesData = async (startDate, endDate, interval = 'hour',
       response.data.data.forEach(item => {
         const siteId = item.site;
 
-        // Filter by sites if specified
-        if (sites && sites.length > 0 && !sites.includes(siteId)) {
-          return; // Skip this item if it's not in the requested sites
+        // Filter by sites if specified (convert both to numbers for comparison)
+        if (sites && sites.length > 0) {
+          const numericSiteId = typeof siteId === 'string' ? parseInt(siteId, 10) : siteId;
+          const numericSites = sites.map(s => typeof s === 'string' ? parseInt(s, 10) : s);
+          if (!numericSites.includes(numericSiteId)) {
+            return; // Skip this item if it's not in the requested sites
+          }
         }
 
         const coords = coordinates[siteId];
