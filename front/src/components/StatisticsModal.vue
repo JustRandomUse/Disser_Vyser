@@ -473,9 +473,12 @@ const renderTimeSeriesChart = () => {
       top: 10
     },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross'
+      trigger: 'item',
+      formatter: function(params) {
+        const seriesName = params.seriesName;
+        const value = params.value;
+        const time = times[params.dataIndex];
+        return `<strong>${seriesName}</strong><br/>${time}: ${value}`;
       }
     },
     legend: {
@@ -659,9 +662,12 @@ const renderInstantChart = () => {
       top: 10
     },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross'
+      trigger: 'item',
+      formatter: function(params) {
+        const seriesName = params.seriesName;
+        const value = params.value;
+        const time = times[params.dataIndex];
+        return `<strong>${seriesName}</strong><br/>${time}: ${value}`;
       }
     },
     legend: {
