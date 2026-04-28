@@ -434,7 +434,7 @@ const renderTimeSeriesChart = () => {
     position: index % 2 === 0 ? 'left' : 'right',
     offset: Math.floor(index / 2) * 60,
     nameLocation: 'middle',
-    nameGap: 30,
+    nameGap: 50,
     nameTextStyle: {
       color: colors[param],
       fontWeight: 'bold',
@@ -498,7 +498,7 @@ const renderTimeSeriesChart = () => {
       right: gridRight + 150,
       bottom: 80,
       top: 80,
-      containLabel: false
+      containLabel: true
     },
     xAxis: {
       type: 'category',
@@ -693,7 +693,7 @@ const renderInstantChart = () => {
       right: gridRight + 150,
       bottom: 80,
       top: 80,
-      containLabel: false
+      containLabel: true
     },
     xAxis: {
       type: 'category',
