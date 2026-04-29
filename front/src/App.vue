@@ -358,8 +358,19 @@ export default {
         const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
 
         if (daysDiff === 0) {
-          rangeType = 'day';
-          interval = 'hour';
+          // Check if it's today
+          const today = new Date();
+          const isToday = startDate.getDate() === today.getDate() &&
+                         startDate.getMonth() === today.getMonth() &&
+                         startDate.getFullYear() === today.getFullYear();
+
+          if (isToday) {
+            rangeType = 'hour';
+            interval = 'hour';
+          } else {
+            rangeType = 'day';
+            interval = 'hour';
+          }
         } else if (daysDiff <= 31) {
           rangeType = 'day';
           interval = 'day';
@@ -377,8 +388,20 @@ export default {
         const currentDate = selectedDate.value || new Date();
         startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0);
         endDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
-        rangeType = 'day';
-        interval = 'hour';
+
+        // Check if it's today
+        const today = new Date();
+        const isToday = startDate.getDate() === today.getDate() &&
+                       startDate.getMonth() === today.getMonth() &&
+                       startDate.getFullYear() === today.getFullYear();
+
+        if (isToday) {
+          rangeType = 'hour';
+          interval = 'hour';
+        } else {
+          rangeType = 'day';
+          interval = 'hour';
+        }
         console.log('  ✅ Using fallback (current day)');
       }
 

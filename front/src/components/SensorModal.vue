@@ -313,7 +313,8 @@ const renderSingleParamChart = () => {
       left: 60,
       right: 200,
       bottom: 60,
-      top: 80
+      top: 80,
+      containLabel: true
     },
     xAxis: {
       type: 'time',
@@ -324,9 +325,9 @@ const renderSingleParamChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: getUnit(param),
+      name: formatKey(param) + ' (' + getUnit(param) + ')',
       nameLocation: 'middle',
-      nameGap: 50,
+      nameGap: 30,
       nameTextStyle: {
         color: colors[param],
         fontWeight: 'bold',

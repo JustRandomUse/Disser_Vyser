@@ -434,7 +434,7 @@ const renderTimeSeriesChart = () => {
     position: index % 2 === 0 ? 'left' : 'right',
     offset: Math.floor(index / 2) * 60,
     nameLocation: 'middle',
-    nameGap: 50,
+    nameGap: 30,
     nameTextStyle: {
       color: colors[param],
       fontWeight: 'bold',
